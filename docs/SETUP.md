@@ -11,18 +11,25 @@ Bewaar alle geheimen in `.env.local` (lokaal) of in de Vercel-omgevingsvariabele
 
 Doel: de app mag de twee sheets **lezen**.
 
-1. Ga naar <https://console.cloud.google.com/> en maak (of kies) een project.
-2. Activeer de **Google Sheets API** (APIs & Services → Library → "Google Sheets API" → Enable).
-3. Maak een **service-account** aan (APIs & Services → Credentials → Create
-   credentials → Service account). Geef het een naam, bv. `dashboard-reader`.
-4. Maak bij dat service-account een **JSON-key** aan (Keys → Add key → JSON).
-   Er wordt een `.json`-bestand gedownload.
-5. Open beide sheets in Google Sheets en klik **Delen**. Deel met het
-   service-account-e-mailadres (staat in de JSON, eindigt op
-   `…iam.gserviceaccount.com`), rol **Viewer**.
-6. Vul in `.env.local` in:
-   - `GOOGLE_SERVICE_ACCOUNT_EMAIL` = `client_email` uit de JSON
-   - `GOOGLE_PRIVATE_KEY` = `private_key` uit de JSON (met de `\n`'s, tussen quotes)
+We gebruiken het **bestaande** service-account:
+`jurian30102002@civil-density-472414-n3.iam.gserviceaccount.com`
+(project `civil-density-472414-n3`, "My Project 13924"). Dit e-mailadres staat
+al ingevuld in `.env.example`.
+
+Drie acties (alleen jij kunt deze doen):
+
+1. **Sheets API aanzetten** in dít project: ga in Google Cloud naar
+   APIs & Services → Library → zoek "Google Sheets API" → **Enable**.
+   (Project `civil-density-472414-n3` moet bovenin geselecteerd staan.)
+2. **Beide sheets delen** met het service-account-adres hierboven, rol
+   **Viewer** (knop *Delen* in Google Sheets, plak het e-mailadres).
+3. **JSON-sleutel** voor het account: IAM & Admin → Service Accounts → klik het
+   account → **Keys** → *Add key* → *Create new key* → **JSON**. Er wordt een
+   bestand gedownload. Open het en zet:
+   - `GOOGLE_PRIVATE_KEY` = de `private_key`-waarde (begint met
+     `-----BEGIN PRIVATE KEY-----`)
+   in `.env.local` (lokaal) of in de Vercel-omgevingsvariabelen — **niet** in de
+   chat of in git. Het e-mailadres (`client_email`) staat al goed.
 
 De sheet-ID's staan al ingevuld in `.env.example`:
 - Ad Spend: `1Ti9fqrGCMzROHXzNuiBH1qACsZTwPWxHKSGMw_pNsL0`
