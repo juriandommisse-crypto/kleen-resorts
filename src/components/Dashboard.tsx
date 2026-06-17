@@ -4,13 +4,16 @@ import { useMemo, useState } from "react";
 import type { DashboardData } from "@/lib/types";
 import {
   ALL_PROJECTS,
-  kpisForWeek,
+  availablePeriods,
+  kpisForPeriod,
   leadsByProject,
+  periodLabel,
+  series,
   spendByPlatform,
   topAds,
-  weeklySeries,
+  type Granularity,
 } from "@/lib/aggregate";
-import { delta, fmtEur, fmtNum, prettyWeek } from "@/lib/format";
+import { delta, fmtEur, fmtNum } from "@/lib/format";
 import { KpiCard } from "./KpiCard";
 import { TrendChart } from "./TrendChart";
 import { SpendBreakdown } from "./SpendBreakdown";
@@ -18,23 +21,63 @@ import { TopAdsTable } from "./TopAdsTable";
 import { InsightPanel } from "./InsightPanel";
 import { LeadsRanking } from "./LeadsRanking";
 
+const GRANULARITIES: Array<{ value: Granularity; label: string }> = [
+  { value: "week", label: "Week" },
+  { value: "month", label: "Maand" },
+  { value: "year", label: "Jaar" },
+];
+
+const TREND_TITLE: Record<Granularity, string> = {
+  week: "Leads & ad spend per week",
+  month: "Leads & ad spend per maand",
+  year: "Leads & ad spend per jaar",
+};
+
 export function Dashboard({ data }: { data: DashboardData }) {
   const [project, setProject] = useState<string>(ALL_PROJECTS);
-  const week = data.currentWeek;
+  const [granularity, setGranularity] = useState<Granularity>("week");
+  const [periodKey, setPeriodKey] = useState<string | null>(null);
 
-  const series = useMemo(() => weeklySeries(data, project), [data, project]);
-  const kpis = useMemo(() => kpisForWeek(data, project, week), [data, project, week]);
-  const prevWeek = series.at(-2);
-  const platforms = useMemo(() => spendByPlatform(data, project, week), [data, project, week]);
-  const ads = useMemo(() => topAds(data, project, week), [data, project, week]);
-  const ranking = useMemo(() => leadsByProject(data, week), [data, week]);
+  // Beschikbare periodes (oplopend); standaard de meest recente.
+  const periods = useMemo(() => availablePeriods(data, granularity), [data, granularity]);
+  const selected = periodKey && periods.includes(periodKey) ? periodKey : periods.at(-1) ?? "";
+  const prevPeriod = periods[periods.indexOf(selected) - 1];
+
+  const trend = useMemo(() => series(data, project, granularity), [data, project, granularity]);
+  const kpis = useMemo(
+    () => kpisForPeriod(data, project, granularity, selected),
+    [data, project, granularity, selected],
+  );
+  const prevKpis = useMemo(
+    () => (prevPeriod ? kpisForPeriod(data, project, granularity, prevPeriod) : null),
+    [data, project, granularity, prevPeriod],
+  );
+  const platforms = useMemo(
+    () => spendByPlatform(data, project, granularity, selected),
+    [data, project, granularity, selected],
+  );
+  const ads = useMemo(
+    () => topAds(data, project, granularity, selected),
+    [data, project, granularity, selected],
+  );
+  const ranking = useMemo(
+    () => leadsByProject(data, granularity, selected),
+    [data, granularity, selected],
+  );
+
+  function changeGranularity(g: Granularity) {
+    setGranularity(g);
+    setPeriodKey(null); // val terug op meest recente periode
+  }
+
+  const periodPrefix = granularity === "week" ? "vorige week" : granularity === "month" ? "vorige maand" : "vorig jaar";
 
   return (
     <main className="mx-auto max-w-2xl px-4 pb-16 pt-6">
       <header className="mb-5">
         <p className="text-xs font-medium uppercase tracking-wide text-brand">Kleen Resorts</p>
         <h1 className="text-2xl font-bold text-ink">Marketing Dashboard</h1>
-        <p className="mt-1 text-sm text-muted">{prettyWeek(week)}</p>
+        <p className="mt-1 text-sm text-muted">{periodLabel(selected, granularity)}</p>
       </header>
 
       {data.notice && (
@@ -42,6 +85,34 @@ export function Dashboard({ data }: { data: DashboardData }) {
           ⚠️ {data.notice}
         </div>
       )}
+
+      {/* Periode-keuze: granulariteit (segmented) + specifieke periode */}
+      <div className="mb-4 flex gap-2">
+        <div className="inline-flex rounded-xl bg-white p-1 shadow-sm ring-1 ring-black/5">
+          {GRANULARITIES.map((gr) => (
+            <button
+              key={gr.value}
+              onClick={() => changeGranularity(gr.value)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                granularity === gr.value ? "bg-brand text-white" : "text-muted hover:text-ink"
+              }`}
+            >
+              {gr.label}
+            </button>
+          ))}
+        </div>
+        <select
+          value={selected}
+          onChange={(e) => setPeriodKey(e.target.value)}
+          className="flex-1 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
+        >
+          {[...periods].reverse().map((p) => (
+            <option key={p} value={p}>
+              {periodLabel(p, granularity)}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <label className="mb-5 block">
         <span className="mb-1 block text-xs font-medium text-muted">Project</span>
@@ -63,28 +134,31 @@ export function Dashboard({ data }: { data: DashboardData }) {
         <KpiCard
           label="Leads"
           value={fmtNum(kpis.leads)}
-          delta={prevWeek ? delta(kpis.leads, prevWeek.leads) : null}
+          delta={prevKpis ? delta(kpis.leads, prevKpis.leads) : null}
           higherIsBetter
+          deltaLabel={`t.o.v. ${periodPrefix}`}
         />
         <KpiCard
           label="Ad spend"
           value={fmtEur(kpis.spend)}
-          delta={prevWeek ? delta(kpis.spend, prevWeek.spend) : null}
+          delta={prevKpis ? delta(kpis.spend, prevKpis.spend) : null}
           higherIsBetter={false}
+          deltaLabel={`t.o.v. ${periodPrefix}`}
         />
         <KpiCard
           label="Kosten / lead"
           value={kpis.cpl ? fmtEur(kpis.cpl) : "—"}
-          delta={prevWeek && prevWeek.cpl ? delta(kpis.cpl, prevWeek.cpl) : null}
+          delta={prevKpis && prevKpis.cpl ? delta(kpis.cpl, prevKpis.cpl) : null}
           higherIsBetter={false}
+          deltaLabel={`t.o.v. ${periodPrefix}`}
         />
-        <KpiCard label="Afspraken" value={fmtNum(kpis.appointments)} hint="gepland deze week" />
+        <KpiCard label="Afspraken" value={fmtNum(kpis.appointments)} hint="gepland in periode" />
       </div>
 
       <div className="space-y-5">
         <InsightPanel insight={data.insight} />
         <TopAdsTable ads={ads} />
-        <TrendChart data={series} />
+        <TrendChart data={trend} title={TREND_TITLE[granularity]} />
         <SpendBreakdown rows={platforms} />
         {project === ALL_PROJECTS && <LeadsRanking rows={ranking} />}
       </div>

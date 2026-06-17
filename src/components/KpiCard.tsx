@@ -7,9 +7,18 @@ interface Props {
   /** Of een stijging "goed" (groen) is. CPL: lager = beter, dus invert. */
   higherIsBetter?: boolean;
   hint?: string;
+  /** Tekst achter het deltapercentage, bv. "t.o.v. vorige maand". */
+  deltaLabel?: string;
 }
 
-export function KpiCard({ label, value, delta, higherIsBetter = true, hint }: Props) {
+export function KpiCard({
+  label,
+  value,
+  delta,
+  higherIsBetter = true,
+  hint,
+  deltaLabel = "t.o.v. vorige periode",
+}: Props) {
   const hasDelta = delta != null && Number.isFinite(delta);
   const positive = hasDelta && delta! > 0;
   const good = hasDelta ? (higherIsBetter ? positive : !positive) : false;
@@ -23,7 +32,7 @@ export function KpiCard({ label, value, delta, higherIsBetter = true, hint }: Pr
         <div
           className={`mt-1 text-xs font-medium ${good ? "text-brand" : "text-rose-600"}`}
         >
-          {arrow} {fmtPct(Math.abs(delta!))} vs. vorige week
+          {arrow} {fmtPct(Math.abs(delta!))} {deltaLabel}
         </div>
       ) : (
         hint && <div className="mt-1 text-xs text-muted">{hint}</div>
