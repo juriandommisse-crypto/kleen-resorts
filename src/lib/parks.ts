@@ -49,24 +49,32 @@ const ALIASES: Array<[needle: string, canonical: CanonicalProject]> = [
 ];
 
 /**
+ * Probeer een aanduiding te matchen op een canoniek project.
+ * Geeft `null` terug als er geen match is (i.t.t. normalizeProject).
+ */
+export function matchProject(raw: string | undefined | null): CanonicalProject | null {
+  if (!raw) return null;
+  const hay = raw.toLowerCase().trim();
+
+  const exact = CANONICAL_PROJECTS.find((p) => p.toLowerCase() === hay);
+  if (exact) return exact;
+
+  // Langere aliassen eerst, zodat specifieke namen voorrang krijgen boven afkortingen.
+  for (const [needle, canonical] of [...ALIASES].sort((a, b) => b[0].length - a[0].length)) {
+    if (hay.includes(needle)) return canonical;
+  }
+  return null;
+}
+
+/**
  * Zet een willekeurige park-/accountaanduiding om naar de canonieke naam.
  * Geeft "Algemeen" terug als er geen match is (en logt dat in dev).
  */
 export function normalizeProject(raw: string | undefined | null): CanonicalProject {
-  if (!raw) return "Algemeen";
-  const hay = raw.toLowerCase().trim();
+  const matched = matchProject(raw);
+  if (matched) return matched;
 
-  // Exacte canonieke match heeft voorrang.
-  const exact = CANONICAL_PROJECTS.find((p) => p.toLowerCase() === hay);
-  if (exact) return exact;
-
-  // Langere aliassen eerst, zodat "kleen algemeen" niet op "algemeen" struikelt
-  // en specifieke namen voorrang krijgen boven korte afkortingen.
-  for (const [needle, canonical] of [...ALIASES].sort((a, b) => b[0].length - a[0].length)) {
-    if (hay.includes(needle)) return canonical;
-  }
-
-  if (process.env.NODE_ENV !== "production") {
+  if (raw && process.env.NODE_ENV !== "production") {
     console.warn(`[parks] Geen match voor projectnaam: "${raw}" -> "Algemeen"`);
   }
   return "Algemeen";

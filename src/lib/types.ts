@@ -66,4 +66,6 @@ export interface DashboardData {
   insight: WeeklyInsight | null;
   /** Zichtbare melding wanneer een live-bron faalde (anders null). */
   notice?: string | null;
+  /** Herkomst van de getoonde data. */
+  source: "mock" | "live";
 }

@@ -125,6 +125,7 @@ export function getMockData(): DashboardData {
   const currentWeek = WEEKS[WEEKS.length - 1].week;
 
   return {
+    source: "mock",
     generatedAt: new Date().toISOString(),
     currentWeek,
     projects: PROJECTS,

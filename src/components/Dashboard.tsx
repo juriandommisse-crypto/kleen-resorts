@@ -83,15 +83,15 @@ export function Dashboard({ data }: { data: DashboardData }) {
 
       <div className="space-y-5">
         <InsightPanel insight={data.insight} />
+        <TopAdsTable ads={ads} />
         <TrendChart data={series} />
         <SpendBreakdown rows={platforms} />
-        <TopAdsTable ads={ads} />
         {project === ALL_PROJECTS && <LeadsRanking rows={ranking} />}
       </div>
 
       <footer className="mt-8 text-center text-xs text-muted">
         Laatst bijgewerkt {new Date(data.generatedAt).toLocaleString("nl-NL")} ·{" "}
-        {process.env.NEXT_PUBLIC_DATA_SOURCE === "live" ? "live data" : "testdata"}
+        {data.source === "live" ? "live data" : "testdata"}
       </footer>
     </main>
   );

@@ -74,16 +74,19 @@ export function spendByPlatform(
     .sort((a, b) => b.spend - a.spend);
 }
 
-/** Best presterende advertenties (laagste CPL met minimaal 1 resultaat). */
+/**
+ * Best presterende advertenties: gesorteerd op AANTAL leads (results) aflopend,
+ * bij gelijk aantal de laagste CPL eerst. CPL wordt in de UI ernaast getoond.
+ */
 export function topAds(
   data: DashboardData,
   project: string,
   week: string,
-  limit = 8,
+  limit = 10,
 ): AdPerformance[] {
   return byProject(data.adPerformance, project)
     .filter((a) => a.week === week && a.results > 0)
-    .sort((a, b) => a.cpl - b.cpl)
+    .sort((a, b) => b.results - a.results || a.cpl - b.cpl)
     .slice(0, limit);
 }
 

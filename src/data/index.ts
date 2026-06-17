@@ -67,6 +67,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const currentWeek = [...weeklyLeads.map((l) => l.week)].sort().at(-1) ?? "";
 
   const base: Omit<DashboardData, "insight"> = {
+    source: "live",
     generatedAt: new Date().toISOString(),
     currentWeek,
     projects,

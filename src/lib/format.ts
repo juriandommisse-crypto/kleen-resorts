@@ -36,6 +36,19 @@ export function prettyWeek(week: string): string {
   return `Week ${parseInt(m[2], 10)}, ${m[1]}`;
 }
 
+/** ISO-datum (bv. "2026-06-09") -> ISO-weeksleutel "2026-W24". */
+export function isoWeekKey(dateStr: string): string {
+  const d = new Date(`${dateStr.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return "";
+  const day = (d.getUTCDay() + 6) % 7; // maandag = 0
+  d.setUTCDate(d.getUTCDate() - day + 3); // donderdag van deze week
+  const firstThu = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const firstDay = (firstThu.getUTCDay() + 6) % 7;
+  firstThu.setUTCDate(firstThu.getUTCDate() - firstDay + 3);
+  const week = 1 + Math.round((d.getTime() - firstThu.getTime()) / (7 * 86400000));
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
 /** "2026-W24" -> ISO-datum (maandag) van die week, bv. "2026-06-08". */
 export function isoWeekStart(week: string): string {
   const m = week.match(/^(\d{4})-W(\d{2})$/);
