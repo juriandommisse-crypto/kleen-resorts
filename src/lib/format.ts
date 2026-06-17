@@ -35,3 +35,19 @@ export function prettyWeek(week: string): string {
   if (!m) return week;
   return `Week ${parseInt(m[2], 10)}, ${m[1]}`;
 }
+
+/** "2026-W24" -> ISO-datum (maandag) van die week, bv. "2026-06-08". */
+export function isoWeekStart(week: string): string {
+  const m = week.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return "";
+  const year = parseInt(m[1], 10);
+  const wk = parseInt(m[2], 10);
+  const simple = new Date(Date.UTC(year, 0, 1 + (wk - 1) * 7));
+  const dow = simple.getUTCDay(); // 0=zo .. 6=za
+  if (dow <= 4) {
+    simple.setUTCDate(simple.getUTCDate() - dow + 1);
+  } else {
+    simple.setUTCDate(simple.getUTCDate() + 8 - dow);
+  }
+  return simple.toISOString().slice(0, 10);
+}

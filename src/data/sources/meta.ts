@@ -8,6 +8,10 @@ import type { AdPerformance } from "@/lib/types";
 
 const GRAPH = "https://graph.facebook.com";
 
+export function metaConfigured(): boolean {
+  return Boolean(process.env.META_ACCESS_TOKEN && process.env.META_AD_ACCOUNT_IDS);
+}
+
 interface MetaInsightRow {
   campaign_name: string;
   adset_name: string;

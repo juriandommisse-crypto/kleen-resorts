@@ -2,35 +2,56 @@
 //
 // Eén functie `getDashboardData()` die de UI gebruikt. Hij schakelt tussen
 // testdata (mock) en live-data (Sheets + Meta + Claude) op basis van
-// DATA_SOURCE. Zo blijft de rest van de app onveranderd als we live gaan.
+// DATA_SOURCE. Live is "partieel": leads kunnen al live draaien voordat de
+// Meta-koppeling klaar is — ontbrekende delen blijven simpelweg leeg.
 
-import type { DashboardData } from "@/lib/types";
+import type { AdPerformance, DashboardData, WeeklySpend } from "@/lib/types";
 import { getMockData } from "./mock";
 
-export async function getDashboardData(): Promise<DashboardData> {
-  const source = process.env.DATA_SOURCE ?? "mock";
+/** Leid wekelijkse spend per project/platform af uit de ad-performance (Meta). */
+function deriveSpendFromAds(ads: AdPerformance[]): WeeklySpend[] {
+  const map = new Map<string, WeeklySpend>();
+  for (const ad of ads) {
+    const key = `${ad.week}__${ad.project}__${ad.platform}`;
+    const cur = map.get(key);
+    if (cur) cur.spendEur += ad.spendEur;
+    else map.set(key, { week: ad.week, project: ad.project, platform: ad.platform, spendEur: ad.spendEur });
+  }
+  for (const s of map.values()) s.spendEur = Math.round(s.spendEur);
+  return [...map.values()];
+}
 
-  if (source !== "live") {
+export async function getDashboardData(): Promise<DashboardData> {
+  if ((process.env.DATA_SOURCE ?? "mock") !== "live") {
     return getMockData();
   }
 
-  // --- Live-pad ------------------------------------------------------
-  // Lazy imports zodat de mock-modus geen credentials/SDK's nodig heeft.
-  const [{ fetchWeeklyLeads, fetchWeeklySpend }, { fetchAdPerformance }, { generateInsight }] =
-    await Promise.all([
-      import("./sources/googleSheets"),
-      import("./sources/meta"),
-      import("./sources/insights"),
-    ]);
-
-  const [weeklyLeads, weeklySpend, adPerformance] = await Promise.all([
-    fetchWeeklyLeads(),
-    fetchWeeklySpend(),
-    fetchAdPerformance(),
+  // --- Live-pad. Lazy imports zodat mock-modus geen SDK's/credentials nodig heeft.
+  const [sheets, meta, insightsMod] = await Promise.all([
+    import("./sources/googleSheets"),
+    import("./sources/meta"),
+    import("./sources/insights"),
   ]);
 
+  // Niets geconfigureerd? Val terug op mock zodat het dashboard blijft werken.
+  if (!sheets.googleConfigured() && !meta.metaConfigured()) {
+    return getMockData();
+  }
+
+  const [weeklyLeads, adPerformance] = await Promise.all([
+    sheets.googleConfigured() ? sheets.fetchWeeklyLeads() : Promise.resolve([]),
+    meta.metaConfigured() ? meta.fetchAdPerformance() : Promise.resolve([]),
+  ]);
+
+  // Wekelijkse Meta-spend afgeleid uit ad-performance; eventuele sheet-spend
+  // (Google/LinkedIn, maandbasis) volgt in fase 2.
+  const weeklySpend = [
+    ...deriveSpendFromAds(adPerformance),
+    ...(sheets.googleConfigured() ? await sheets.fetchWeeklySpend() : []),
+  ];
+
   const projects = Array.from(new Set(weeklyLeads.map((l) => l.project))).sort();
-  const currentWeek = weeklyLeads.map((l) => l.week).sort().at(-1) ?? "";
+  const currentWeek = [...weeklyLeads.map((l) => l.week)].sort().at(-1) ?? "";
 
   const base: Omit<DashboardData, "insight"> = {
     generatedAt: new Date().toISOString(),
@@ -41,6 +62,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     adPerformance,
   };
 
-  const insight = await generateInsight(base).catch(() => null);
+  const insight = await insightsMod.generateInsight(base).catch(() => null);
   return { ...base, insight };
 }
