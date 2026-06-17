@@ -37,6 +37,12 @@ export function Dashboard({ data }: { data: DashboardData }) {
         <p className="mt-1 text-sm text-muted">{prettyWeek(week)}</p>
       </header>
 
+      {data.notice && (
+        <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          ⚠️ {data.notice}
+        </div>
+      )}
+
       <label className="mb-5 block">
         <span className="mb-1 block text-xs font-medium text-muted">Project</span>
         <select

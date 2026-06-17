@@ -16,11 +16,32 @@ export function googleConfigured(): boolean {
   return Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
 }
 
+/**
+ * Normaliseert de private key zodat hij werkt ongeacht hoe hij geplakt is:
+ * - verwijdert omringende aanhalingstekens (veelgemaakte fout in Vercel)
+ * - zet letterlijke \n (en \r\n) om naar echte regeleinden
+ * - laat een al correct meerregelige PEM ongemoeid
+ */
+function normalizePrivateKey(raw: string): string {
+  let k = raw.trim();
+  if ((k.startsWith('"') && k.endsWith('"')) || (k.startsWith("'") && k.endsWith("'"))) {
+    k = k.slice(1, -1);
+  }
+  k = k.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
+  return k.trim() + "\n";
+}
+
 function getAuth(): GoogleAuth {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  if (!email || !key) {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
+  const rawKey = process.env.GOOGLE_PRIVATE_KEY;
+  if (!email || !rawKey) {
     throw new Error("Google service-account ontbreekt (zie .env.example).");
+  }
+  const key = normalizePrivateKey(rawKey);
+  if (!key.includes("BEGIN PRIVATE KEY")) {
+    throw new Error(
+      "GOOGLE_PRIVATE_KEY lijkt onvolledig: verwacht een PEM met '-----BEGIN PRIVATE KEY-----'.",
+    );
   }
   return new GoogleAuth({
     credentials: { client_email: email, private_key: key },

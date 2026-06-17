@@ -8,6 +8,8 @@
 import type { AdPerformance, DashboardData, WeeklySpend } from "@/lib/types";
 import { getMockData } from "./mock";
 
+const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
 /** Leid wekelijkse spend per project/platform af uit de ad-performance (Meta). */
 function deriveSpendFromAds(ads: AdPerformance[]): WeeklySpend[] {
   const map = new Map<string, WeeklySpend>();
@@ -38,17 +40,28 @@ export async function getDashboardData(): Promise<DashboardData> {
     return getMockData();
   }
 
-  const [weeklyLeads, adPerformance] = await Promise.all([
-    sheets.googleConfigured() ? sheets.fetchWeeklyLeads() : Promise.resolve([]),
-    meta.metaConfigured() ? meta.fetchAdPerformance() : Promise.resolve([]),
-  ]);
+  const notices: string[] = [];
+
+  const weeklyLeads = sheets.googleConfigured()
+    ? await sheets.fetchWeeklyLeads().catch((e: unknown) => {
+        notices.push(`Leads (Google Sheets) konden niet geladen worden: ${msg(e)}`);
+        return [];
+      })
+    : [];
+
+  const adPerformance = meta.metaConfigured()
+    ? await meta.fetchAdPerformance().catch((e: unknown) => {
+        notices.push(`Advertentiedata (Meta) kon niet geladen worden: ${msg(e)}`);
+        return [];
+      })
+    : [];
 
   // Wekelijkse Meta-spend afgeleid uit ad-performance; eventuele sheet-spend
   // (Google/LinkedIn, maandbasis) volgt in fase 2.
-  const weeklySpend = [
-    ...deriveSpendFromAds(adPerformance),
-    ...(sheets.googleConfigured() ? await sheets.fetchWeeklySpend() : []),
-  ];
+  const sheetSpend = sheets.googleConfigured()
+    ? await sheets.fetchWeeklySpend().catch(() => [])
+    : [];
+  const weeklySpend = [...deriveSpendFromAds(adPerformance), ...sheetSpend];
 
   const projects = Array.from(new Set(weeklyLeads.map((l) => l.project))).sort();
   const currentWeek = [...weeklyLeads.map((l) => l.week)].sort().at(-1) ?? "";
@@ -60,6 +73,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     weeklyLeads,
     weeklySpend,
     adPerformance,
+    notice: notices.length ? notices.join(" · ") : null,
   };
 
   const insight = await insightsMod.generateInsight(base).catch(() => null);

@@ -64,4 +64,6 @@ export interface DashboardData {
   weeklySpend: WeeklySpend[];
   adPerformance: AdPerformance[];
   insight: WeeklyInsight | null;
+  /** Zichtbare melding wanneer een live-bron faalde (anders null). */
+  notice?: string | null;
 }
