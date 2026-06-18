@@ -44,6 +44,11 @@ const ALIASES: Array<[needle: string, canonical: CanonicalProject]> = [
   ["buitengewoon zeeland", "Vosseweide - Resort Buitengewoon Zeeland"],
   ["westonbay", "WestonBay - Resort Amsterdam"],
   ["wiedeweer", "Wiedeweer"],
+  ["wdw", "Wiedeweer"],
+  ["kraggenburg", "Wiedeweer"],
+  ["flevoland", "Wiedeweer"],
+  ["zuyderzee", "Wiedeweer"],
+  ["zuiderzee", "Wiedeweer"],
   ["algemeen", "Algemeen"],
   ["kleen algemeen", "Algemeen"],
 ];
