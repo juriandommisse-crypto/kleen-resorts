@@ -160,7 +160,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
         <div className="lg:col-span-12">
           <InsightPanel insight={data.insights[granularity]} />
         </div>
-        <div className={project === ALL_PROJECTS ? "lg:col-span-8" : "lg:col-span-12"}>
+        <div className={project === ALL_PROJECTS ? "h-full lg:col-span-8" : "lg:col-span-12"}>
           <TrendChart data={trend} title={TREND_TITLE[granularity]} />
         </div>
         {project === ALL_PROJECTS && (
