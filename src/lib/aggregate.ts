@@ -8,6 +8,7 @@
 
 import type { AdPerformance, DashboardData, Platform } from "./types";
 import { isoWeekStart, prettyWeek } from "./format";
+import { ACTIVE_SALES_PROJECTS } from "./parks";
 
 export const ALL_PROJECTS = "__all__";
 
@@ -238,15 +239,11 @@ export interface ProjectLeads {
 }
 
 /**
- * Leads per project voor één periode. Projecten met minder dan `minLeads` leads
- * worden samengevat onder "Overig", zodat de ranglijst compact blijft.
+ * Leads per project voor één periode. Alleen de actieve verkoopparken worden
+ * los getoond; alle overige projecten worden samengevat onder "Overig", in elke
+ * view (week/maand/jaar).
  */
-export function leadsByProject(
-  data: DashboardData,
-  g: Granularity,
-  key: string,
-  minLeads = 5,
-): ProjectLeads[] {
+export function leadsByProject(data: DashboardData, g: Granularity, key: string): ProjectLeads[] {
   const leads = data.weeklyLeads.filter((l) => inPeriod(l.week, g, key));
   const spend = data.weeklySpend.filter((s) => inPeriod(s.week, g, key));
   const projects = Array.from(new Set(leads.map((l) => l.project)));
@@ -259,8 +256,9 @@ export function leadsByProject(
     })
     .sort((a, b) => b.leads - a.leads);
 
-  const keep = rows.filter((r) => r.leads >= minLeads);
-  const rest = rows.filter((r) => r.leads < minLeads);
+  const active = new Set<string>(ACTIVE_SALES_PROJECTS);
+  const keep = rows.filter((r) => active.has(r.project));
+  const rest = rows.filter((r) => !active.has(r.project));
   if (rest.length) {
     const leadsSum = rest.reduce((a, r) => a + r.leads, 0);
     const spendSum = rest.reduce((a, r) => a + r.spend, 0);

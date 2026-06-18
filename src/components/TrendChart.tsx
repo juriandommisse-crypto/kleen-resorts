@@ -17,8 +17,11 @@ export function TrendChart({ data, title }: { data: SeriesPoint[]; title: string
   return (
     <div className="flex h-full flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
       <h2 className="mb-3 text-sm font-semibold text-ink">{title}</h2>
-      <div className="min-h-[16rem] w-full flex-1">
-        <ResponsiveContainer width="100%" height="100%">
+      {/* relative + absolute zodat de grafiek de cel vult zónder zichzelf groter
+          te duwen dan de ranglijst ernaast (bottoms uitgelijnd). */}
+      <div className="relative w-full flex-1 min-h-[16rem]">
+        <div className="absolute inset-0">
+          <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eef2f0" />
             <XAxis dataKey="label" tick={{ fontSize: 11 }} />
@@ -40,7 +43,8 @@ export function TrendChart({ data, title }: { data: SeriesPoint[]; title: string
               name="leads"
             />
           </ComposedChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );
