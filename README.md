@@ -17,7 +17,7 @@ slim duidt.
 - **Spend per platform:** Meta / Google / LinkedIn.
 - **Best presterende advertenties:** gesorteerd op laagste kosten per lead.
 - **Leads per project:** ranglijst over alle projecten.
-- **Slimme samenvatting:** een korte, automatische duiding (door Claude) van wat
+- **Slimme samenvatting:** een korte, automatische duiding (door OpenAI) van wat
   er deze week opvalt.
 - **Filter** op project, of bekijk alle projecten samen.
 
@@ -25,7 +25,7 @@ slim duidt.
 - **Next.js 15** (App Router) + **React** + **TypeScript**
 - **Tailwind CSS** (mobile-first)
 - **Recharts** voor de grafieken
-- Databronnen: **Google Sheets API**, **Meta Marketing API**, **Anthropic (Claude)**
+- Databronnen: **Google Sheets API**, **Meta Marketing API**, **OpenAI**
 - Deploy-doel: **Vercel** (incl. wekelijkse cron-refresh)
 
 ## Lokaal draaien
@@ -51,7 +51,7 @@ src/
   data/
     index.ts           Provider: schakelt tussen mock en live
     mock.ts            Realistische testdata
-    sources/           Live-bronnen: googleSheets, meta, insights (Claude)
+    sources/           Live-bronnen: googleSheets, meta, insights (OpenAI)
   lib/                 Types, projectnaam-mapping, valuta, formatting, aggregatie
 docs/
   SETUP.md             Stap-voor-stap: credentials koppelen
@@ -62,5 +62,5 @@ docs/
 Volg [`docs/SETUP.md`](docs/SETUP.md). Kort:
 1. Google service-account aanmaken en beide sheets ermee delen.
 2. Meta-app + long-lived token (`ads_read`) + ad-account-ID's.
-3. (Optioneel) Anthropic API-key voor de wekelijkse samenvatting.
+3. (Optioneel) OpenAI API-key voor de wekelijkse samenvatting.
 4. `DATA_SOURCE=live` zetten en de adapters in `src/data/sources/` afmaken.

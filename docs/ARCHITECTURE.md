@@ -9,7 +9,7 @@ Google Sheets ─┐
 Meta Marketing─┘   src/data/sources/meta.ts ──────────┤   (getDashboardData)
  API                                                  │
                    src/data/sources/insights.ts ──────┘
-                   (Claude: wekelijkse samenvatting)
+                   (OpenAI: wekelijkse samenvatting)
 ```
 
 `getDashboardData()` is het enige aanspreekpunt voor de UI. Met

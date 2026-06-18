@@ -64,11 +64,12 @@ CTR, leads, CPL) — per dag/week. Dit staat niet in de sheet en is nodig voor
 
 ---
 
-## 3. Anthropic (slimme wekelijkse samenvatting) — optioneel
+## 3. OpenAI (slimme wekelijkse samenvatting) — optioneel
 
-1. Maak een API-key aan op <https://console.anthropic.com/>.
-2. Vul `ANTHROPIC_API_KEY` in `.env.local`. (`ANTHROPIC_MODEL` heeft een
-   verstandige standaard.)
+1. Maak een API-key aan op <https://platform.openai.com/api-keys>.
+2. Vul `OPENAI_API_KEY` in `.env.local`. `OPENAI_MODEL` heeft een verstandige
+   standaard (`gpt-4o-mini` — beste prijs/kwaliteit voor deze taak; je kunt er
+   ook bv. `gpt-4.1-mini` of `gpt-4o` van maken).
 
 Zonder key werkt het dashboard gewoon, alleen zonder de tekstuele duiding.
 

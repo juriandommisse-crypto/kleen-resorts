@@ -20,7 +20,7 @@ export function InsightPanel({ insight }: { insight: WeeklyInsight | null }) {
         </>
       ) : (
         <p className="text-sm text-white/90">
-          Voeg een Anthropic API-key toe om hier wekelijks een automatische duiding
+          Voeg een OpenAI API-key toe om hier wekelijks een automatische duiding
           van de cijfers te laten verschijnen.
         </p>
       )}
