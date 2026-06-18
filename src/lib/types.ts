@@ -68,7 +68,12 @@ export interface DashboardData {
   weeklyLeads: WeeklyLeads[];
   weeklySpend: WeeklySpend[];
   adPerformance: AdPerformance[];
-  insight: WeeklyInsight | null;
+  /** Slimme samenvatting per granulariteit (week/maand/jaar). */
+  insights: {
+    week: WeeklyInsight | null;
+    month: WeeklyInsight | null;
+    year: WeeklyInsight | null;
+  };
   /** Zichtbare melding wanneer een live-bron faalde (anders null). */
   notice?: string | null;
   /** Herkomst van de getoonde data. */

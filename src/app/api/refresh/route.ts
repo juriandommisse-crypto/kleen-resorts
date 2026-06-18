@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       refreshedAt: data.generatedAt,
       currentWeek: data.currentWeek,
       projects: data.projects.length,
-      hasInsight: Boolean(data.insight),
+      hasInsight: Boolean(data.insights.week || data.insights.month || data.insights.year),
     });
   } catch (err) {
     return NextResponse.json(

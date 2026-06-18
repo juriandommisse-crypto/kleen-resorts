@@ -135,15 +135,17 @@ export function getMockData(): DashboardData {
     weeklyLeads,
     weeklySpend,
     adPerformance,
-    insight: {
-      week: currentWeek,
-      headline: "Voorbeeld-samenvatting (testdata)",
-      bullets: [
-        "Dit is gegenereerde testdata. Zodra de Meta- en Sheets-koppeling live staat, schrijft Claude hier een echte wekelijkse duiding.",
-        "Kosten per lead bij Fryske Mar liggen het laagst; retargeting-advertenties presteren bovengemiddeld.",
-        "Greenerwold laat de sterkste week-op-week groei in leads zien.",
-      ],
-      generatedAt: new Date().toISOString(),
-    },
+    insights: { week: mockInsight, month: mockInsight, year: mockInsight },
   };
 }
+
+const mockInsight = {
+  week: "2026-W25",
+  headline: "Voorbeeld-samenvatting (testdata)",
+  bullets: [
+    "Dit is gegenereerde testdata. Met een OpenAI API-key schrijft het model hier een echte duiding per view.",
+    "Kosten per lead bij Fryske Mar liggen het laagst; retargeting-advertenties presteren bovengemiddeld.",
+    "Greenerwold laat de sterkste week-op-week groei in leads zien.",
+  ],
+  generatedAt: new Date().toISOString(),
+};

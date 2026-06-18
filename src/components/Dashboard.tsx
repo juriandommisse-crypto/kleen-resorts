@@ -158,7 +158,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
           Op desktop: grafiek + ranglijst naast elkaar, beste ads in volle breedte. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-12">
-          <InsightPanel insight={data.insight} />
+          <InsightPanel insight={data.insights[granularity]} />
         </div>
         <div className={project === ALL_PROJECTS ? "lg:col-span-8" : "lg:col-span-12"}>
           <TrendChart data={trend} title={TREND_TITLE[granularity]} />

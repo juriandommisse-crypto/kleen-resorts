@@ -69,7 +69,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const projects = Array.from(new Set(weeklyLeads.map((l) => l.project))).sort();
   const currentWeek = [...weeklyLeads.map((l) => l.week)].sort().at(-1) ?? "";
 
-  const base: Omit<DashboardData, "insight"> = {
+  const base: Omit<DashboardData, "insights"> = {
     source: "live",
     generatedAt: new Date().toISOString(),
     currentWeek,
@@ -80,6 +80,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     notice: notices.length ? notices.join(" · ") : null,
   };
 
-  const insight = await insightsMod.generateInsight(base).catch(() => null);
-  return { ...base, insight };
+  const insights = await insightsMod
+    .generateInsights(base)
+    .catch(() => ({ week: null, month: null, year: null }));
+  return { ...base, insights };
 }

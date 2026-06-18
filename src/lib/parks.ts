@@ -26,6 +26,17 @@ export const CANONICAL_PROJECTS = [
 
 export type CanonicalProject = (typeof CANONICAL_PROJECTS)[number];
 
+/**
+ * Parken die momenteel actief in de verkoop zijn. Alleen deze worden
+ * meegenomen in de slimme samenvatting. Pas deze lijst aan als het verkoop-
+ * aanbod wijzigt.
+ */
+export const ACTIVE_SALES_PROJECTS: CanonicalProject[] = [
+  "Greenerwold",
+  "Wiedeweer",
+  "Fryske Mar - Resort Balk",
+];
+
 // Aliassen (lowercase, substring-match) -> canonieke naam.
 const ALIASES: Array<[needle: string, canonical: CanonicalProject]> = [
   ["fryske mar", "Fryske Mar - Resort Balk"],
