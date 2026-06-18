@@ -155,19 +155,26 @@ export function Dashboard({ data }: { data: DashboardData }) {
         <KpiCard label="Afspraken" value={fmtNum(kpis.appointments)} hint="gepland in periode" />
       </div>
 
-      {/* Mobiel: alles onder elkaar (ongewijzigd). Desktop: 2 kolommen naast elkaar. */}
+      {/* Mobiel: DOM-volgorde (ongewijzigd): Insight, beste ads, grafiek, spend, ranglijst.
+          Desktop: figuren bovenaan, beste advertenties in volle breedte onderaan (via lg:order). */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="lg:col-span-12">
+        <div className="lg:order-1 lg:col-span-12">
           <InsightPanel insight={data.insight} />
         </div>
-        <div className="lg:col-span-7">
+        <div className="lg:order-5 lg:col-span-12">
           <TopAdsTable ads={ads} />
         </div>
-        <div className="space-y-5 lg:col-span-5">
+        <div className="lg:order-2 lg:col-span-8">
           <TrendChart data={trend} title={TREND_TITLE[granularity]} />
-          <SpendBreakdown rows={platforms} />
-          {project === ALL_PROJECTS && <LeadsRanking rows={ranking} />}
         </div>
+        <div className="lg:order-3 lg:col-span-4">
+          <SpendBreakdown rows={platforms} />
+        </div>
+        {project === ALL_PROJECTS && (
+          <div className="lg:order-4 lg:col-span-12">
+            <LeadsRanking rows={ranking} />
+          </div>
+        )}
       </div>
 
       <footer className="mt-8 text-center text-xs text-muted">

@@ -37,7 +37,7 @@ export function SpendBreakdown({
             </div>
           </div>
         ))}
-        {rows.length === 0 && <p className="text-sm text-muted">Geen spend deze week.</p>}
+        {rows.length === 0 && <p className="text-sm text-muted">Geen spend in deze periode.</p>}
       </div>
     </div>
   );
