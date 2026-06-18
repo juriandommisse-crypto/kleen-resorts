@@ -103,10 +103,10 @@ function Lightbox({ ad, onClose }: { ad: AdPerformance; onClose: () => void }) {
       aria-modal="true"
     >
       <div
-        className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-xl"
+        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative flex h-[60vh] items-center justify-center bg-black">
+        <div className="relative flex h-[40vh] shrink-0 items-center justify-center bg-black sm:h-[55vh]">
           {ad.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={ad.thumbnailUrl} alt={ad.adName} className="h-full w-full object-contain" />
@@ -128,7 +128,7 @@ function Lightbox({ ad, onClose }: { ad: AdPerformance; onClose: () => void }) {
           </span>
         </div>
 
-        <div className="p-5">
+        <div className="overflow-y-auto p-5">
           <h3 className="text-base font-semibold text-ink">{ad.adName || "—"}</h3>
           <p className="text-sm text-muted">
             {ad.campaignName}
