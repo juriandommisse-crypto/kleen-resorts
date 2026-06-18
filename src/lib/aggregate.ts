@@ -229,19 +229,46 @@ export function topAds(
 // Leads per project (ranglijst)
 // ---------------------------------------------------------------------------
 
+export interface ProjectLeads {
+  project: string;
+  leads: number;
+  spend: number;
+  cpl: number;
+}
+
+/**
+ * Leads per project voor één periode. Projecten met minder dan `minLeads` leads
+ * worden samengevat onder "Overig", zodat de ranglijst compact blijft.
+ */
 export function leadsByProject(
   data: DashboardData,
   g: Granularity,
   key: string,
-): Array<{ project: string; leads: number; spend: number; cpl: number }> {
+  minLeads = 5,
+): ProjectLeads[] {
   const leads = data.weeklyLeads.filter((l) => inPeriod(l.week, g, key));
   const spend = data.weeklySpend.filter((s) => inPeriod(s.week, g, key));
   const projects = Array.from(new Set(leads.map((l) => l.project)));
-  return projects
+
+  const rows = projects
     .map((project) => {
       const l = leads.filter((x) => x.project === project).reduce((a, x) => a + x.leads, 0);
       const s = spend.filter((x) => x.project === project).reduce((a, x) => a + x.spendEur, 0);
       return { project, leads: l, spend: Math.round(s), cpl: l ? Math.round(s / l) : 0 };
     })
     .sort((a, b) => b.leads - a.leads);
+
+  const keep = rows.filter((r) => r.leads >= minLeads);
+  const rest = rows.filter((r) => r.leads < minLeads);
+  if (rest.length) {
+    const leadsSum = rest.reduce((a, r) => a + r.leads, 0);
+    const spendSum = rest.reduce((a, r) => a + r.spend, 0);
+    keep.push({
+      project: "Overig",
+      leads: leadsSum,
+      spend: spendSum,
+      cpl: leadsSum ? Math.round(spendSum / leadsSum) : 0,
+    });
+  }
+  return keep;
 }

@@ -10,14 +10,12 @@ import {
   periodLabel,
   periodRange,
   series,
-  spendByPlatform,
   topAds,
   type Granularity,
 } from "@/lib/aggregate";
 import { delta, fmtDateNL, fmtEur, fmtNum } from "@/lib/format";
 import { KpiCard } from "./KpiCard";
 import { TrendChart } from "./TrendChart";
-import { SpendBreakdown } from "./SpendBreakdown";
 import { TopAdsTable } from "./TopAdsTable";
 import { InsightPanel } from "./InsightPanel";
 import { LeadsRanking } from "./LeadsRanking";
@@ -52,10 +50,6 @@ export function Dashboard({ data }: { data: DashboardData }) {
   const prevKpis = useMemo(
     () => (prevPeriod ? kpisForPeriod(data, project, granularity, prevPeriod) : null),
     [data, project, granularity, prevPeriod],
-  );
-  const platforms = useMemo(
-    () => spendByPlatform(data, project, granularity, selected),
-    [data, project, granularity, selected],
   );
   const ads = useMemo(
     () => topAds(data, project, granularity, selected),
@@ -160,20 +154,17 @@ export function Dashboard({ data }: { data: DashboardData }) {
         <KpiCard label="Afspraken" value={fmtNum(kpis.appointments)} hint="gepland in periode" />
       </div>
 
-      {/* DOM-volgorde = mobiele volgorde: figuren eerst, beste advertenties onderaan.
-          Op desktop: grafiek (8) + spend (4) op één rij, ranglijst en beste ads vol breed. */}
+      {/* DOM-volgorde = mobiele volgorde: grafiek, projectranglijst, beste advertenties.
+          Op desktop: grafiek + ranglijst naast elkaar, beste ads in volle breedte. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-12">
           <InsightPanel insight={data.insight} />
         </div>
-        <div className="lg:col-span-8">
+        <div className={project === ALL_PROJECTS ? "lg:col-span-8" : "lg:col-span-12"}>
           <TrendChart data={trend} title={TREND_TITLE[granularity]} />
         </div>
-        <div className="lg:col-span-4">
-          <SpendBreakdown rows={platforms} />
-        </div>
         {project === ALL_PROJECTS && (
-          <div className="lg:col-span-12">
+          <div className="lg:col-span-4">
             <LeadsRanking rows={ranking} />
           </div>
         )}
