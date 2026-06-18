@@ -102,8 +102,8 @@ interface AdRow {
 async function fetchAds(accountId: string): Promise<AdRow[]> {
   const params = new URLSearchParams({
     fields: "id,name,effective_status,adset_id,creative{thumbnail_url,image_url}",
-    thumbnail_width: "320",
-    thumbnail_height: "320",
+    thumbnail_width: "600",
+    thumbnail_height: "600",
     limit: "500",
     access_token: token(),
   });
@@ -188,7 +188,7 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
     const learning = ad.adset_id ? learningByAdset.get(ad.adset_id) : undefined;
     adMeta.set(ad.id, {
       status: statusLabel(ad.effective_status, learning),
-      thumb: ad.creative?.thumbnail_url ?? ad.creative?.image_url ?? null,
+      thumb: ad.creative?.image_url ?? ad.creative?.thumbnail_url ?? null,
     });
   }
 
