@@ -73,7 +73,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
   const periodPrefix = granularity === "week" ? "vorige week" : granularity === "month" ? "vorige maand" : "vorig jaar";
 
   return (
-    <main className="mx-auto max-w-2xl px-4 pb-16 pt-6">
+    <main className="mx-auto max-w-2xl px-4 pb-16 pt-6 lg:max-w-6xl">
       <header className="mb-5">
         <p className="text-xs font-medium uppercase tracking-wide text-brand">Kleen Resorts</p>
         <h1 className="text-2xl font-bold text-ink">Marketing Dashboard</h1>
@@ -104,7 +104,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
         <select
           value={selected}
           onChange={(e) => setPeriodKey(e.target.value)}
-          className="flex-1 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
+          className="flex-1 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 lg:max-w-xs"
         >
           {[...periods].reverse().map((p) => (
             <option key={p} value={p}>
@@ -119,7 +119,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
         <select
           value={project}
           onChange={(e) => setProject(e.target.value)}
-          className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
+          className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 lg:max-w-md"
         >
           <option value={ALL_PROJECTS}>Alle projecten</option>
           {data.projects.map((p) => (
@@ -130,7 +130,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
         </select>
       </label>
 
-      <div className="mb-5 grid grid-cols-2 gap-3">
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           label="Leads"
           value={fmtNum(kpis.leads)}
@@ -155,12 +155,19 @@ export function Dashboard({ data }: { data: DashboardData }) {
         <KpiCard label="Afspraken" value={fmtNum(kpis.appointments)} hint="gepland in periode" />
       </div>
 
-      <div className="space-y-5">
-        <InsightPanel insight={data.insight} />
-        <TopAdsTable ads={ads} />
-        <TrendChart data={trend} title={TREND_TITLE[granularity]} />
-        <SpendBreakdown rows={platforms} />
-        {project === ALL_PROJECTS && <LeadsRanking rows={ranking} />}
+      {/* Mobiel: alles onder elkaar (ongewijzigd). Desktop: 2 kolommen naast elkaar. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-12">
+          <InsightPanel insight={data.insight} />
+        </div>
+        <div className="lg:col-span-7">
+          <TopAdsTable ads={ads} />
+        </div>
+        <div className="space-y-5 lg:col-span-5">
+          <TrendChart data={trend} title={TREND_TITLE[granularity]} />
+          <SpendBreakdown rows={platforms} />
+          {project === ALL_PROJECTS && <LeadsRanking rows={ranking} />}
+        </div>
       </div>
 
       <footer className="mt-8 text-center text-xs text-muted">
