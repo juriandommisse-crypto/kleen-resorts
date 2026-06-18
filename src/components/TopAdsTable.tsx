@@ -67,10 +67,10 @@ function AdCard({
         <div className="mt-2 flex items-end justify-between">
           <div>
             <span className="text-xl font-bold text-ink">{fmtNum(ad.results)}</span>
-            <span className="ml-1 text-xs text-muted">leads</span>
+            <span className="ml-1 text-xs text-muted">resultaten</span>
           </div>
           <span className="rounded-full bg-brand-light px-2 py-0.5 text-xs font-semibold text-brand-dark">
-            {ad.cpl ? `${fmtEur(ad.cpl)}/lead` : "—"}
+            {ad.cpl ? `${fmtEur(ad.cpl)} p/res` : "—"}
           </span>
         </div>
 
@@ -145,8 +145,8 @@ function Lightbox({
           <p className="mt-1 text-xs text-muted">Cijfers over {period}</p>
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Leads" value={fmtNum(ad.results)} />
-            <Stat label="Kosten / lead" value={ad.cpl ? fmtEur(ad.cpl) : "—"} />
+            <Stat label="Resultaten" value={fmtNum(ad.results)} />
+            <Stat label="Kosten / resultaat" value={ad.cpl ? fmtEur(ad.cpl) : "—"} />
             <Stat label="Spend" value={fmtEur(ad.spendEur)} />
             <Stat label="CTR" value={fmtPct(ad.ctr)} />
             <Stat label="Vertoningen" value={fmtNum(ad.impressions)} />
@@ -182,7 +182,7 @@ export function TopAdsTable({
     <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
       <h2 className="text-sm font-semibold text-ink">Best presterende advertenties</h2>
       <p className="text-xs text-muted">
-        Advertenties met meer dan 5 leads · gesorteerd op aantal leads · klik voor groot · Meta
+        Advertenties met meer dan 5 resultaten · gesorteerd op aantal resultaten · klik voor groot · Meta
       </p>
       <p className="mb-4 text-xs text-muted">
         Cijfers over <span className="font-medium text-ink">{period}</span>
@@ -190,7 +190,7 @@ export function TopAdsTable({
 
       {ads.length === 0 ? (
         <p className="text-sm text-muted">
-          Geen advertenties met meer dan 5 leads in deze selectie.
+          Geen advertenties met meer dan 5 resultaten in deze selectie.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

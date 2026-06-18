@@ -69,11 +69,39 @@ interface InsightRow {
   actions?: Array<{ action_type: string; value: string }>;
 }
 
-function countLeads(actions: InsightRow["actions"]): number {
+// Action-types die een ECHT lead-resultaat zijn (= Meta's "Resultaat").
+// LET OP: NIET optellen — Meta rapporteert hetzelfde resultaat onder meerdere
+// types (allemaal gelijk), en "..._content_view_..." / "..._contact_..." zijn
+// content-views/contacten, GEEN leads.
+const REAL_LEAD_ACTION_TYPES = new Set([
+  "lead",
+  "onsite_web_lead",
+  "offsite_conversion.fb_pixel_lead",
+  "offsite_lead_add_20_s_calls",
+  "onsite_conversion.lead_grouped",
+  "leadgen.other",
+]);
+
+/** Aantal resultaten (leads) zoals Meta het telt voor "Kosten per resultaat". */
+function countResults(actions: InsightRow["actions"]): number {
   if (!actions) return 0;
-  return actions
-    .filter((a) => a.action_type.toLowerCase().includes("lead"))
-    .reduce((sum, a) => sum + (parseFloat(a.value) || 0), 0);
+
+  const override = process.env.META_RESULT_ACTION_TYPE;
+  if (override) {
+    const m = actions.find((a) => a.action_type === override);
+    return m ? parseFloat(m.value) || 0 : 0;
+  }
+
+  // Voorkeur: het standaard "lead"-resultaat.
+  const lead = actions.find((a) => a.action_type === "lead");
+  if (lead) return parseFloat(lead.value) || 0;
+
+  // Anders het hoogste echte lead-type (gelijke duplicaten -> max, niet de som).
+  let max = 0;
+  for (const a of actions) {
+    if (REAL_LEAD_ACTION_TYPES.has(a.action_type)) max = Math.max(max, parseFloat(a.value) || 0);
+  }
+  return max;
 }
 
 async function fetchInsights(accountId: string): Promise<InsightRow[]> {
@@ -297,7 +325,7 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
     acc.spendEur += parseFloat(r.spend ?? "0") || 0;
     acc.impressions += parseInt(r.impressions ?? "0", 10) || 0;
     acc.clicks += parseInt(r.clicks ?? "0", 10) || 0;
-    acc.results += countLeads(r.actions);
+    acc.results += countResults(r.actions);
     map.set(key, acc);
   }
 
