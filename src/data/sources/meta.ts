@@ -153,11 +153,32 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
   const platform: Platform = "meta";
   const accounts = accountIds();
 
-  const [insights, ads, adsets] = await Promise.all([
-    Promise.all(accounts.map(fetchInsights)).then((a) => a.flat()),
-    Promise.all(accounts.map(fetchAds)).then((a) => a.flat()),
-    Promise.all(accounts.map(fetchAdsets)).then((a) => a.flat()),
-  ]);
+  // Per account ophalen en fouten isoleren: één account zonder toegang mag niet
+  // de hele ad-view blokkeren.
+  const perAccount = await Promise.all(
+    accounts.map(async (acc) => {
+      try {
+        const [ins, ads, sets] = await Promise.all([
+          fetchInsights(acc),
+          fetchAds(acc),
+          fetchAdsets(acc),
+        ]);
+        return { ins, ads, sets, err: null as string | null };
+      } catch (e) {
+        return { ins: [], ads: [], sets: [], err: e instanceof Error ? e.message : String(e) };
+      }
+    }),
+  );
+
+  const failed = perAccount.filter((r) => r.err);
+  // Alle accounts faalden -> geef de fout door zodat de melding zichtbaar wordt.
+  if (accounts.length > 0 && failed.length === accounts.length) {
+    throw new Error(failed[0].err ?? "Meta-data kon niet geladen worden.");
+  }
+
+  const insights = perAccount.flatMap((r) => r.ins);
+  const ads = perAccount.flatMap((r) => r.ads);
+  const adsets = perAccount.flatMap((r) => r.sets);
 
   const learningByAdset = new Map<string, string | undefined>();
   for (const s of adsets) learningByAdset.set(s.id, s.learning_stage_info?.status);
