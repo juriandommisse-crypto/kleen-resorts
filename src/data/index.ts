@@ -59,7 +59,10 @@ export async function getDashboardData(): Promise<DashboardData> {
   // Wekelijkse Meta-spend afgeleid uit ad-performance; eventuele sheet-spend
   // (Google/LinkedIn, maandbasis) volgt in fase 2.
   const sheetSpend = sheets.googleConfigured()
-    ? await sheets.fetchWeeklySpend().catch(() => [])
+    ? await sheets.fetchWeeklySpend().catch((e: unknown) => {
+        notices.push(`Ad spend (Google Sheets) kon niet geladen worden: ${msg(e)}`);
+        return [];
+      })
     : [];
   const weeklySpend = [...deriveSpendFromAds(adPerformance), ...sheetSpend];
 

@@ -6,9 +6,10 @@
 // werkt voor alle projecten tegelijk.
 
 import { GoogleAuth } from "google-auth-library";
-import type { WeeklyLeads, WeeklySpend } from "@/lib/types";
+import type { Platform, WeeklyLeads, WeeklySpend } from "@/lib/types";
 import { normalizeProject } from "@/lib/parks";
-import { isoWeekStart } from "@/lib/format";
+import { isoWeekStart, isoWeekKey } from "@/lib/format";
+import { parseSheetAmount } from "@/lib/currency";
 
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
 
@@ -151,14 +152,87 @@ export async function fetchWeeklyLeads(): Promise<WeeklyLeads[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Ad spend (maandelijks in de sheet).
+// Ad spend
 //
-// In fase 1 komt wekelijkse spend uit de Meta API; Google/LinkedIn-spend uit de
-// sheet is maandelijks en volgt in fase 2. Daarom hier nog niet geïmplementeerd.
+// Bron: de Ad Spend-sheet bevat een maandtabel per park × platform met de
+// kolommen "Maand · Park · Spend Google · Spend META · Spend LinkedIn". Die
+// spend is maandelijks; we verdelen elke maand gelijk over de ISO-weken waarvan
+// de maandag in die maand valt. Daardoor kloppen de maand- en jaartotalen exact,
+// en is de weekweergave een nette schatting (maand ÷ aantal weken).
 // ---------------------------------------------------------------------------
 
+/** "2026-4" / "2026-04" -> "2026-04"; anders null (bv. "Totaal"). */
+function normalizeMonth(raw: string): string | null {
+  const m = raw.trim().match(/^(\d{4})-(\d{1,2})$/);
+  if (!m) return null;
+  return `${m[1]}-${m[2].padStart(2, "0")}`;
+}
+
+/** ISO-weken waarvan de maandag in de gegeven maand ("YYYY-MM") valt. */
+function weeksInMonth(monthKey: string): string[] {
+  const [y, m] = monthKey.split("-").map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  const weeks = new Set<string>();
+  for (let d = 1; d <= lastDay; d++) {
+    const ds = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const wk = isoWeekKey(ds);
+    if (wk && isoWeekStart(wk).slice(0, 7) === monthKey) weeks.add(wk);
+  }
+  return [...weeks];
+}
+
 export async function fetchWeeklySpend(): Promise<WeeklySpend[]> {
-  // TODO(fase 2): lees de maandtabel "Spend Google/META/LinkedIn" per park en
-  // verdeel naar weken, of toon spend op maandbasis naast de Meta-weekspend.
-  return [];
+  const sheetId = process.env.SHEET_ID_AD_SPEND;
+  if (!sheetId) throw new Error("SHEET_ID_AD_SPEND ontbreekt.");
+
+  const tabs = await listTabs(sheetId);
+
+  for (const tab of tabs) {
+    const rows = await readRange(sheetId, `${tab}!A1:Z2000`);
+
+    // Zoek de headerrij van de per-platform spendtabel (waar dan ook in het tab).
+    const hi = rows.findIndex(
+      (r) => r.some((c) => /spend\s*meta/i.test(c)) && r.some((c) => /maand|month/i.test(c)),
+    );
+    if (hi < 0) continue;
+
+    const header = rows[hi].map((x) => String(x));
+    const find = (re: RegExp) => header.findIndex((h) => re.test(h));
+    const iMonth = find(/maand|month/i);
+    const iPark = find(/park/i);
+    const cols: Array<[number, Platform]> = [
+      [find(/spend\s*google/i), "google"],
+      [find(/spend\s*meta/i), "meta"],
+      [find(/spend\s*linkedin/i), "linkedin"],
+    ];
+
+    const out: WeeklySpend[] = [];
+    for (let r = hi + 1; r < rows.length; r++) {
+      const row = rows[r] ?? [];
+      const rawMonth = (row[iMonth] ?? "").trim();
+      const parkRaw = (row[iPark] ?? "").trim();
+      if (!rawMonth && !parkRaw) break; // lege scheidingsrij = einde tabel
+      if (/totaal|total/i.test(parkRaw)) continue;
+
+      const month = normalizeMonth(rawMonth);
+      if (!month) continue;
+      const project = normalizeProject(parkRaw);
+      const weeks = weeksInMonth(month);
+      if (!weeks.length) continue;
+
+      for (const [idx, platform] of cols) {
+        if (idx < 0) continue;
+        const amount = parseSheetAmount(row[idx]);
+        if (amount <= 0) continue;
+        const per = amount / weeks.length;
+        for (const w of weeks) out.push({ week: w, project, platform, spendEur: per });
+      }
+    }
+
+    if (out.length) return out;
+  }
+
+  throw new Error(
+    `Geen 'Spend per platform'-tabel gevonden in Ad Spend (tabbladen: ${tabs.join(", ")}).`,
+  );
 }
