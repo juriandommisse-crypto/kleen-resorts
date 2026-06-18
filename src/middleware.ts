@@ -25,6 +25,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Beveilig de pagina's, niet de statische assets of de cron-endpoint.
-  matcher: ["/((?!api/refresh|_next/static|_next/image|favicon.ico).*)"],
+  // Beveilig de pagina's, niet de API-routes of statische assets.
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico).*)"],
 };
