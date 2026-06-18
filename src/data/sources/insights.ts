@@ -32,12 +32,12 @@ KERNCIJFERS:
 LEVER:
 - Een kop (max 8 woorden) en 3 tot 5 bullets.
 - Elke bullet = één concreet inzicht MET duiding of actie — geen kale opsomming van cijfers. Gebruik echte getallen en parknamen.
-- Benoem: de trend t.o.v. de vorige periode(s) (stijgt/daalt), welk park het efficiëntst is (laagste CPL) versus het meeste volume, en de best én zwakst presterende advertentie bij naam.
-- Geef minstens één concrete aanbeveling (bijv. budget verschuiven, een advertentie pauzeren of opschalen).
+- Benoem: de trend t.o.v. de vorige periode(s) (stijgt/daalt), welk park het efficiëntst is (laagste kosten per resultaat) versus het meeste volume, en de best én zwakst presterende advertentie bij naam.
+- BELANGRIJK over aanbevelingen: de lezer heeft GEEN invloed op budget, opschalen of pauzeren van advertenties. Aanbevelingen richten zich op feedback aan het marketingbureau Booking Boosters — denk aan: andere visuals of advertentieteksten laten testen bij zwak presterende ads, of een succesvolle visual/insteek breder inzetten. Adviseer dus nooit "budget verhogen/verlagen" of "ad pauzeren".
 
 STIJL:
 - Nederlands, zakelijk, beknopt (max ~25 woorden per bullet). Geen disclaimers, geen herhaling van alle ruwe cijfers, geen algemeenheden.
-- Bij dunne of ontbrekende data: benoem dat kort i.p.v. te gissen.`;
+- "CPL" = kosten per resultaat (Meta). Bij dunne of ontbrekende data: benoem dat kort i.p.v. te gissen.`;
 
 const TIMEFRAME: Record<Granularity, string> = {
   week: "de afgelopen weken",
