@@ -187,21 +187,21 @@ export function spendByPlatform(
 
 /**
  * Best presterende advertenties over de periode: per advertentie samengeteld,
- * gesorteerd op AANTAL leads (results) aflopend, bij gelijk aantal laagste CPL
- * eerst. CPL wordt in de UI ernaast getoond.
+ * alleen advertenties met MEER DAN `minLeads` leads, gesorteerd op aantal leads
+ * (bij gelijk aantal laagste CPL eerst). CPL/CTR/CPC worden herberekend.
  */
 export function topAds(
   data: DashboardData,
   project: string,
   g: Granularity,
   key: string,
-  limit = 10,
+  { minLeads = 5, limit = 24 }: { minLeads?: number; limit?: number } = {},
 ): AdPerformance[] {
   const rows = byProject(data.adPerformance, project).filter((a) => inPeriod(a.week, g, key));
 
   const map = new Map<string, AdPerformance>();
   for (const a of rows) {
-    const id = `${a.campaignName}__${a.adsetName}__${a.adName}`;
+    const id = a.adId || `${a.campaignName}__${a.adsetName}__${a.adName}`;
     const cur = map.get(id);
     if (cur) {
       cur.spendEur += a.spendEur;
@@ -220,7 +220,7 @@ export function topAds(
       cpc: a.clicks ? a.spendEur / a.clicks : 0,
       cpl: a.results ? a.spendEur / a.results : 0,
     }))
-    .filter((a) => a.results > 0)
+    .filter((a) => a.results > minLeads)
     .sort((a, b) => b.results - a.results || a.cpl - b.cpl)
     .slice(0, limit);
 }

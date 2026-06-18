@@ -1,8 +1,8 @@
-// Meta Marketing API databron (advertentie-performance + wekelijkse spend).
+// Meta Marketing API databron (advertentie-performance + creative + status).
 //
-// Levert de rijke cijfers die NIET in de sheet staan: impressions, clicks, CTR,
-// results (leads) en CPL per advertentie per ISO-week. Wordt actief zodra
-// META_ACCESS_TOKEN + META_AD_ACCOUNT_IDS zijn ingevuld.
+// Levert per advertentie: spend, impressions, clicks, CTR, leads (results), CPL,
+// de creative-thumbnail (de échte ad-visual) en de status (Leren/Actief/…).
+// Wordt actief zodra META_ACCESS_TOKEN + META_AD_ACCOUNT_IDS zijn ingevuld.
 
 import type { AdPerformance, Platform } from "@/lib/types";
 import { matchProject } from "@/lib/parks";
@@ -14,6 +14,13 @@ export function metaConfigured(): boolean {
   return Boolean(process.env.META_ACCESS_TOKEN && process.env.META_AD_ACCOUNT_IDS);
 }
 
+function token() {
+  return process.env.META_ACCESS_TOKEN!;
+}
+function version() {
+  return process.env.META_API_VERSION ?? "v21.0";
+}
+
 function accountIds(): string[] {
   return (process.env.META_AD_ACCOUNT_IDS ?? "")
     .split(",")
@@ -22,8 +29,8 @@ function accountIds(): string[] {
     .map((id) => (id.startsWith("act_") ? id : `act_${id}`));
 }
 
-/** Aantal dagen historie dat we ophalen (≈ aantal weken × 7). */
-const LOOKBACK_DAYS = 56;
+/** Aantal dagen historie dat we ophalen voor ad-performance. */
+const LOOKBACK_DAYS = Number(process.env.META_LOOKBACK_DAYS ?? "90");
 
 function dateRange(): { since: string; until: string } {
   const until = new Date();
@@ -32,68 +39,142 @@ function dateRange(): { since: string; until: string } {
   return { since: fmt(since), until: fmt(until) };
 }
 
-interface MetaRow {
+/** Volgt paginering en verzamelt alle data-rijen van een Graph-endpoint. */
+async function fetchAll<T>(startUrl: string): Promise<T[]> {
+  let url: string | undefined = startUrl;
+  const out: T[] = [];
+  let guard = 0;
+  while (url && guard++ < 100) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Meta API ${res.status}: ${await res.text()}`);
+    const json = (await res.json()) as { data: T[]; paging?: { next?: string } };
+    out.push(...json.data);
+    url = json.paging?.next;
+  }
+  return out;
+}
+
+// --- Insights (per dag, per advertentie) -----------------------------------
+
+interface InsightRow {
   date_start: string;
+  ad_id?: string;
+  ad_name?: string;
   campaign_name?: string;
   adset_name?: string;
-  ad_name?: string;
   spend?: string;
   impressions?: string;
   clicks?: string;
   actions?: Array<{ action_type: string; value: string }>;
 }
 
-interface MetaResponse {
-  data: MetaRow[];
-  paging?: { next?: string };
-}
-
-/** Tel lead-resultaten uit de actions-array (action_type bevat "lead"). */
-function countLeads(actions: MetaRow["actions"]): number {
+function countLeads(actions: InsightRow["actions"]): number {
   if (!actions) return 0;
   return actions
     .filter((a) => a.action_type.toLowerCase().includes("lead"))
     .reduce((sum, a) => sum + (parseFloat(a.value) || 0), 0);
 }
 
-/** Haalt alle (gepagineerde) ad-level dagrijen op voor één account. */
-async function fetchAccountRows(accountId: string): Promise<MetaRow[]> {
-  const token = process.env.META_ACCESS_TOKEN!;
-  const version = process.env.META_API_VERSION ?? "v21.0";
+async function fetchInsights(accountId: string): Promise<InsightRow[]> {
   const { since, until } = dateRange();
-
-  const fields = ["campaign_name", "adset_name", "ad_name", "spend", "impressions", "clicks", "actions"].join(",");
+  const fields = ["ad_id", "ad_name", "campaign_name", "adset_name", "spend", "impressions", "clicks", "actions"].join(",");
   const params = new URLSearchParams({
     level: "ad",
     fields,
     time_range: JSON.stringify({ since, until }),
-    time_increment: "1", // dagelijks; we bucketen zelf naar ISO-weken
+    time_increment: "1",
     limit: "500",
-    access_token: token,
+    access_token: token(),
   });
-
-  let url: string | undefined = `${GRAPH}/${version}/${accountId}/insights?${params}`;
-  const rows: MetaRow[] = [];
-  let guard = 0;
-  while (url && guard++ < 50) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Meta API ${res.status} (${accountId}): ${await res.text()}`);
-    const json = (await res.json()) as MetaResponse;
-    rows.push(...json.data);
-    url = json.paging?.next;
-  }
-  return rows;
+  return fetchAll<InsightRow>(`${GRAPH}/${version()}/${accountId}/insights?${params}`);
 }
+
+// --- Ads (status + creative-thumbnail + adset-koppeling) --------------------
+
+interface AdRow {
+  id: string;
+  name?: string;
+  effective_status?: string;
+  adset_id?: string;
+  creative?: { thumbnail_url?: string; image_url?: string };
+}
+
+async function fetchAds(accountId: string): Promise<AdRow[]> {
+  const params = new URLSearchParams({
+    fields: "id,name,effective_status,adset_id,creative{thumbnail_url,image_url}",
+    thumbnail_width: "320",
+    thumbnail_height: "320",
+    limit: "500",
+    access_token: token(),
+  });
+  return fetchAll<AdRow>(`${GRAPH}/${version()}/${accountId}/ads?${params}`);
+}
+
+// --- Adsets (leerfase) ------------------------------------------------------
+
+interface AdsetRow {
+  id: string;
+  learning_stage_info?: { status?: string };
+}
+
+async function fetchAdsets(accountId: string): Promise<AdsetRow[]> {
+  const params = new URLSearchParams({
+    fields: "id,learning_stage_info",
+    limit: "500",
+    access_token: token(),
+  });
+  return fetchAll<AdsetRow>(`${GRAPH}/${version()}/${accountId}/adsets?${params}`);
+}
+
+const STATUS_NL: Record<string, string> = {
+  PAUSED: "Gepauzeerd",
+  ADSET_PAUSED: "Gepauzeerd",
+  CAMPAIGN_PAUSED: "Gepauzeerd",
+  DISAPPROVED: "Afgekeurd",
+  ARCHIVED: "Gearchiveerd",
+  DELETED: "Verwijderd",
+  PENDING_REVIEW: "In review",
+  IN_PROCESS: "In behandeling",
+  WITH_ISSUES: "Aandacht nodig",
+};
+
+function statusLabel(effectiveStatus: string | undefined, learning: string | undefined): string {
+  if (effectiveStatus && effectiveStatus !== "ACTIVE") {
+    return STATUS_NL[effectiveStatus] ?? effectiveStatus;
+  }
+  if (learning === "LEARNING") return "Leren";
+  if (learning === "LEARNING_LIMITED") return "Leren (beperkt)";
+  return "Actief";
+}
+
+// ---------------------------------------------------------------------------
 
 export async function fetchAdPerformance(): Promise<AdPerformance[]> {
   const platform: Platform = "meta";
   const accounts = accountIds();
 
-  const allRows = (await Promise.all(accounts.map(fetchAccountRows))).flat();
+  const [insights, ads, adsets] = await Promise.all([
+    Promise.all(accounts.map(fetchInsights)).then((a) => a.flat()),
+    Promise.all(accounts.map(fetchAds)).then((a) => a.flat()),
+    Promise.all(accounts.map(fetchAdsets)).then((a) => a.flat()),
+  ]);
 
-  // Aggregeer dagrijen naar (week, project, campaign, adset, ad).
+  const learningByAdset = new Map<string, string | undefined>();
+  for (const s of adsets) learningByAdset.set(s.id, s.learning_stage_info?.status);
+
+  const adMeta = new Map<string, { status: string; thumb: string | null }>();
+  for (const ad of ads) {
+    const learning = ad.adset_id ? learningByAdset.get(ad.adset_id) : undefined;
+    adMeta.set(ad.id, {
+      status: statusLabel(ad.effective_status, learning),
+      thumb: ad.creative?.thumbnail_url ?? ad.creative?.image_url ?? null,
+    });
+  }
+
+  // Aggregeer dag-insights naar (week, ad).
   type Acc = {
     week: string;
+    adId: string;
     project: AdPerformance["project"];
     campaignName: string;
     adsetName: string;
@@ -105,23 +186,22 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
   };
   const map = new Map<string, Acc>();
 
-  for (const r of allRows) {
+  for (const r of insights) {
     const week = isoWeekKey(r.date_start);
-    if (!week) continue;
+    if (!week || !r.ad_id) continue;
     const campaign = r.campaign_name ?? "";
     const adset = r.adset_name ?? "";
-    const ad = r.ad_name ?? "";
-    // Project: eerst uit de campagnenaam (bevat vaak [FM]/[GW]), anders adset.
     const project = matchProject(campaign) ?? matchProject(adset) ?? "Algemeen";
-    const key = `${week}__${campaign}__${adset}__${ad}`;
+    const key = `${week}__${r.ad_id}`;
     const acc =
       map.get(key) ??
       {
         week,
+        adId: r.ad_id,
         project,
         campaignName: campaign,
         adsetName: adset,
-        adName: ad,
+        adName: r.ad_name ?? "",
         spendEur: 0,
         impressions: 0,
         clicks: 0,
@@ -134,19 +214,25 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
     map.set(key, acc);
   }
 
-  return [...map.values()].map((a) => ({
-    week: a.week,
-    project: a.project,
-    platform,
-    campaignName: a.campaignName,
-    adsetName: a.adsetName,
-    adName: a.adName,
-    spendEur: Math.round(a.spendEur),
-    impressions: a.impressions,
-    clicks: a.clicks,
-    results: Math.round(a.results),
-    ctr: a.impressions ? a.clicks / a.impressions : 0,
-    cpc: a.clicks ? a.spendEur / a.clicks : 0,
-    cpl: a.results ? a.spendEur / a.results : 0,
-  }));
+  return [...map.values()].map((a) => {
+    const meta = adMeta.get(a.adId);
+    return {
+      week: a.week,
+      project: a.project,
+      platform,
+      adId: a.adId,
+      campaignName: a.campaignName,
+      adsetName: a.adsetName,
+      adName: a.adName,
+      status: meta?.status ?? "Onbekend",
+      thumbnailUrl: meta?.thumb ?? null,
+      spendEur: Math.round(a.spendEur),
+      impressions: a.impressions,
+      clicks: a.clicks,
+      results: Math.round(a.results),
+      ctr: a.impressions ? a.clicks / a.impressions : 0,
+      cpc: a.clicks ? a.spendEur / a.clicks : 0,
+      cpl: a.results ? a.spendEur / a.results : 0,
+    };
+  });
 }

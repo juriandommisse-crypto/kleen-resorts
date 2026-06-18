@@ -35,9 +35,14 @@ export interface AdPerformance {
   week: WeekKey;
   project: ProjectName;
   platform: Platform;
+  adId: string;
   campaignName: string;
   adsetName: string;
   adName: string;
+  /** Weergavestatus uit Meta: "Actief", "Leren", "Gepauzeerd", … */
+  status: string;
+  /** URL van de creative-thumbnail (of null als onbekend). */
+  thumbnailUrl: string | null;
   spendEur: number;
   impressions: number;
   clicks: number;
