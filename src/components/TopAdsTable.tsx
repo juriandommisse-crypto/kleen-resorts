@@ -106,12 +106,12 @@ function Lightbox({ ad, onClose }: { ad: AdPerformance; onClose: () => void }) {
         className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative flex max-h-[60vh] items-center justify-center bg-black">
+        <div className="relative flex h-[60vh] items-center justify-center bg-black">
           {ad.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={ad.thumbnailUrl} alt={ad.adName} className="max-h-[60vh] w-auto object-contain" />
+            <img src={ad.thumbnailUrl} alt={ad.adName} className="h-full w-full object-contain" />
           ) : (
-            <div className="flex h-64 w-full items-center justify-center text-5xl text-white/40">🖼️</div>
+            <div className="flex h-full w-full items-center justify-center text-5xl text-white/40">🖼️</div>
           )}
           <button
             type="button"

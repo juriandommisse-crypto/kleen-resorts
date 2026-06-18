@@ -1,8 +1,9 @@
 // Meta Marketing API databron (advertentie-performance + creative + status).
 //
 // Levert per advertentie: spend, impressions, clicks, CTR, leads (results), CPL,
-// de creative-thumbnail (de échte ad-visual) en de status (Leren/Actief/…).
-// Wordt actief zodra META_ACCESS_TOKEN + META_AD_ACCOUNT_IDS zijn ingevuld.
+// de creative-afbeelding op volledige resolutie (de échte ad-visual) en de
+// status (Leren/Actief/…). Actief zodra META_ACCESS_TOKEN + META_AD_ACCOUNT_IDS
+// zijn ingevuld.
 
 import type { AdPerformance, Platform } from "@/lib/types";
 import { matchProject } from "@/lib/parks";
@@ -89,25 +90,85 @@ async function fetchInsights(accountId: string): Promise<InsightRow[]> {
   return fetchAll<InsightRow>(`${GRAPH}/${version()}/${accountId}/insights?${params}`);
 }
 
-// --- Ads (status + creative-thumbnail + adset-koppeling) --------------------
+// --- Ads (status + creative) ------------------------------------------------
+
+interface Creative {
+  image_url?: string;
+  thumbnail_url?: string;
+  image_hash?: string;
+  object_story_spec?: {
+    link_data?: { picture?: string; image_hash?: string };
+    photo_data?: { url?: string; image_hash?: string };
+    video_data?: { image_url?: string; image_hash?: string };
+  };
+  asset_feed_spec?: { images?: Array<{ hash?: string }> };
+}
 
 interface AdRow {
   id: string;
   name?: string;
   effective_status?: string;
   adset_id?: string;
-  creative?: { thumbnail_url?: string; image_url?: string };
+  creative?: Creative;
 }
 
 async function fetchAds(accountId: string): Promise<AdRow[]> {
+  const creativeFields =
+    "image_url,thumbnail_url,image_hash,object_story_spec,asset_feed_spec";
   const params = new URLSearchParams({
-    fields: "id,name,effective_status,adset_id,creative{thumbnail_url,image_url}",
+    fields: `id,name,effective_status,adset_id,creative{${creativeFields}}`,
     thumbnail_width: "600",
     thumbnail_height: "600",
     limit: "500",
     access_token: token(),
   });
   return fetchAll<AdRow>(`${GRAPH}/${version()}/${accountId}/ads?${params}`);
+}
+
+/** Alle image-hashes die in een creative voorkomen (volgorde = voorkeur). */
+function hashesOf(creative?: Creative): string[] {
+  const hs: string[] = [];
+  const push = (h?: string) => h && !hs.includes(h) && hs.push(h);
+  push(creative?.image_hash);
+  push(creative?.object_story_spec?.link_data?.image_hash);
+  push(creative?.object_story_spec?.photo_data?.image_hash);
+  push(creative?.object_story_spec?.video_data?.image_hash);
+  for (const im of creative?.asset_feed_spec?.images ?? []) push(im.hash);
+  return hs;
+}
+
+/** Directe afbeeldings-URL uit de creative (zonder hash-lookup). */
+function pictureUrl(creative?: Creative): string | null {
+  const oss = creative?.object_story_spec;
+  return (
+    creative?.image_url ??
+    oss?.link_data?.picture ??
+    oss?.video_data?.image_url ??
+    oss?.photo_data?.url ??
+    null
+  );
+}
+
+/** Map image-hash -> volledige afbeelding-URL via het adimages-endpoint. */
+async function fetchAdImages(accountId: string, hashes: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  for (let i = 0; i < hashes.length; i += 50) {
+    const chunk = hashes.slice(i, i + 50);
+    const params = new URLSearchParams({
+      hashes: JSON.stringify(chunk),
+      fields: "hash,url,permalink_url",
+      limit: "500",
+      access_token: token(),
+    });
+    const rows = await fetchAll<{ hash?: string; url?: string; permalink_url?: string }>(
+      `${GRAPH}/${version()}/${accountId}/adimages?${params}`,
+    );
+    for (const r of rows) {
+      const url = r.permalink_url || r.url;
+      if (r.hash && url) map.set(r.hash, url);
+    }
+  }
+  return map;
 }
 
 // --- Adsets (leerfase) ------------------------------------------------------
@@ -147,6 +208,8 @@ function statusLabel(effectiveStatus: string | undefined, learning: string | und
   return "Actief";
 }
 
+type AdMeta = { status: string; thumb: string | null };
+
 // ---------------------------------------------------------------------------
 
 export async function fetchAdPerformance(): Promise<AdPerformance[]> {
@@ -163,34 +226,37 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
           fetchAds(acc),
           fetchAdsets(acc),
         ]);
-        return { ins, ads, sets, err: null as string | null };
+
+        const learningByAdset = new Map<string, string | undefined>();
+        for (const s of sets) learningByAdset.set(s.id, s.learning_stage_info?.status);
+
+        // Originele afbeeldingen ophalen via hashes (volledige resolutie).
+        const allHashes = Array.from(new Set(ads.flatMap((a) => hashesOf(a.creative))));
+        const imgByHash = allHashes.length ? await fetchAdImages(acc, allHashes) : new Map<string, string>();
+
+        const entries = ads.map((ad) => {
+          const learning = ad.adset_id ? learningByAdset.get(ad.adset_id) : undefined;
+          const fromHash = hashesOf(ad.creative)
+            .map((h) => imgByHash.get(h))
+            .find(Boolean);
+          const thumb = fromHash ?? pictureUrl(ad.creative) ?? ad.creative?.thumbnail_url ?? null;
+          return [ad.id, { status: statusLabel(ad.effective_status, learning), thumb }] as const;
+        });
+
+        return { ins, entries, err: null as string | null };
       } catch (e) {
-        return { ins: [], ads: [], sets: [], err: e instanceof Error ? e.message : String(e) };
+        return { ins: [] as InsightRow[], entries: [] as (readonly [string, AdMeta])[], err: e instanceof Error ? e.message : String(e) };
       }
     }),
   );
 
   const failed = perAccount.filter((r) => r.err);
-  // Alle accounts faalden -> geef de fout door zodat de melding zichtbaar wordt.
   if (accounts.length > 0 && failed.length === accounts.length) {
     throw new Error(failed[0].err ?? "Meta-data kon niet geladen worden.");
   }
 
   const insights = perAccount.flatMap((r) => r.ins);
-  const ads = perAccount.flatMap((r) => r.ads);
-  const adsets = perAccount.flatMap((r) => r.sets);
-
-  const learningByAdset = new Map<string, string | undefined>();
-  for (const s of adsets) learningByAdset.set(s.id, s.learning_stage_info?.status);
-
-  const adMeta = new Map<string, { status: string; thumb: string | null }>();
-  for (const ad of ads) {
-    const learning = ad.adset_id ? learningByAdset.get(ad.adset_id) : undefined;
-    adMeta.set(ad.id, {
-      status: statusLabel(ad.effective_status, learning),
-      thumb: ad.creative?.image_url ?? ad.creative?.thumbnail_url ?? null,
-    });
-  }
+  const adMeta = new Map<string, AdMeta>(perAccount.flatMap((r) => r.entries));
 
   // Aggregeer dag-insights naar (week, ad).
   type Acc = {
