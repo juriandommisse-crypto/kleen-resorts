@@ -84,7 +84,15 @@ function AdCard({
   );
 }
 
-function Lightbox({ ad, onClose }: { ad: AdPerformance; onClose: () => void }) {
+function Lightbox({
+  ad,
+  period,
+  onClose,
+}: {
+  ad: AdPerformance;
+  period: string;
+  onClose: () => void;
+}) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -134,6 +142,7 @@ function Lightbox({ ad, onClose }: { ad: AdPerformance; onClose: () => void }) {
             {ad.campaignName}
             {ad.adsetName ? ` · ${ad.adsetName}` : ""}
           </p>
+          <p className="mt-1 text-xs text-muted">Cijfers over {period}</p>
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Leads" value={fmtNum(ad.results)} />
@@ -160,14 +169,23 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function TopAdsTable({ ads }: { ads: AdPerformance[] }) {
+export function TopAdsTable({
+  ads,
+  period,
+}: {
+  ads: AdPerformance[];
+  period: string;
+}) {
   const [selected, setSelected] = useState<AdPerformance | null>(null);
 
   return (
     <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
       <h2 className="text-sm font-semibold text-ink">Best presterende advertenties</h2>
-      <p className="mb-4 text-xs text-muted">
+      <p className="text-xs text-muted">
         Advertenties met meer dan 5 leads · gesorteerd op aantal leads · klik voor groot · Meta
+      </p>
+      <p className="mb-4 text-xs text-muted">
+        Cijfers over <span className="font-medium text-ink">{period}</span>
       </p>
 
       {ads.length === 0 ? (
@@ -182,7 +200,7 @@ export function TopAdsTable({ ads }: { ads: AdPerformance[] }) {
         </div>
       )}
 
-      {selected && <Lightbox ad={selected} onClose={() => setSelected(null)} />}
+      {selected && <Lightbox ad={selected} period={period} onClose={() => setSelected(null)} />}
     </div>
   );
 }

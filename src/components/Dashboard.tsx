@@ -178,7 +178,10 @@ export function Dashboard({ data }: { data: DashboardData }) {
           </div>
         )}
         <div className="lg:col-span-12">
-          <TopAdsTable ads={ads} />
+          <TopAdsTable
+            ads={ads}
+            period={`${periodLabel(selected, granularity)}${rangeLabel ? ` (${rangeLabel})` : ""}`}
+          />
         </div>
       </div>
 
