@@ -45,13 +45,44 @@ export function periodShortLabel(key: string, g: Granularity): string {
   return (MONTHS_NL[parseInt(m, 10) - 1] ?? m).slice(0, 3);
 }
 
-/** Alle beschikbare periodes voor een granulariteit, oplopend gesorteerd. */
-export function availablePeriods(data: DashboardData, g: Granularity): string[] {
+/** Startdatum (ISO "YYYY-MM-DD") van een periode. */
+export function periodStartISO(key: string, g: Granularity): string {
+  if (g === "week") return isoWeekStart(key);
+  if (g === "month") return `${key}-01`;
+  return `${key}-01-01`;
+}
+
+/** Of een periode niet volledig in de toekomst ligt (start <= vandaag). */
+function isPastOrCurrent(key: string, g: Granularity, now: Date): boolean {
+  return periodStartISO(key, g) <= now.toISOString().slice(0, 10);
+}
+
+/** Exacte datumspan van een periode (week = ma t/m zo, maand/jaar = volledig). */
+export function periodRange(key: string, g: Granularity): { start: Date; end: Date } {
+  if (g === "week") {
+    const start = new Date(`${isoWeekStart(key)}T00:00:00Z`);
+    const end = new Date(start);
+    end.setUTCDate(start.getUTCDate() + 6);
+    return { start, end };
+  }
+  if (g === "month") {
+    const [y, m] = key.split("-").map(Number);
+    return { start: new Date(Date.UTC(y, m - 1, 1)), end: new Date(Date.UTC(y, m, 0)) };
+  }
+  const y = Number(key);
+  return { start: new Date(Date.UTC(y, 0, 1)), end: new Date(Date.UTC(y, 11, 31)) };
+}
+
+/** Alle beschikbare periodes voor een granulariteit (geen toekomst), oplopend. */
+export function availablePeriods(data: DashboardData, g: Granularity, now = new Date()): string[] {
   const set = new Set<string>();
   for (const l of data.weeklyLeads) set.add(periodKeyOf(l.week, g));
   for (const s of data.weeklySpend) set.add(periodKeyOf(s.week, g));
   for (const a of data.adPerformance) set.add(periodKeyOf(a.week, g));
-  return [...set].filter(Boolean).sort();
+  return [...set]
+    .filter(Boolean)
+    .filter((k) => isPastOrCurrent(k, g, now))
+    .sort();
 }
 
 const inPeriod = (week: string, g: Granularity, key: string) => periodKeyOf(week, g) === key;
@@ -74,6 +105,7 @@ export function series(
   project: string,
   g: Granularity,
   maxWeeks = 16,
+  now = new Date(),
 ): SeriesPoint[] {
   const leads = byProject(data.weeklyLeads, project);
   const spend = byProject(data.weeklySpend, project);
@@ -89,7 +121,9 @@ export function series(
     spendByKey.set(k, (spendByKey.get(k) ?? 0) + s.spendEur);
   }
 
-  const keys = Array.from(new Set([...leadByKey.keys(), ...spendByKey.keys()])).sort();
+  const keys = Array.from(new Set([...leadByKey.keys(), ...spendByKey.keys()]))
+    .filter((k) => isPastOrCurrent(k, g, now))
+    .sort();
   const trimmed = g === "week" ? keys.slice(-maxWeeks) : keys;
 
   return trimmed.map((key) => {

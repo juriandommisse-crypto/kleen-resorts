@@ -8,12 +8,13 @@ import {
   kpisForPeriod,
   leadsByProject,
   periodLabel,
+  periodRange,
   series,
   spendByPlatform,
   topAds,
   type Granularity,
 } from "@/lib/aggregate";
-import { delta, fmtEur, fmtNum } from "@/lib/format";
+import { delta, fmtDateNL, fmtEur, fmtNum } from "@/lib/format";
 import { KpiCard } from "./KpiCard";
 import { TrendChart } from "./TrendChart";
 import { SpendBreakdown } from "./SpendBreakdown";
@@ -72,12 +73,16 @@ export function Dashboard({ data }: { data: DashboardData }) {
 
   const periodPrefix = granularity === "week" ? "vorige week" : granularity === "month" ? "vorige maand" : "vorig jaar";
 
+  const range = selected ? periodRange(selected, granularity) : null;
+  const rangeLabel = range ? `${fmtDateNL(range.start)} – ${fmtDateNL(range.end)}` : "";
+
   return (
     <main className="mx-auto max-w-2xl px-4 pb-16 pt-6 lg:max-w-6xl">
       <header className="mb-5">
         <p className="text-xs font-medium uppercase tracking-wide text-brand">Kleen Resorts</p>
         <h1 className="text-2xl font-bold text-ink">Marketing Dashboard</h1>
-        <p className="mt-1 text-sm text-muted">{periodLabel(selected, granularity)}</p>
+        <p className="mt-1 text-sm font-medium text-ink">{periodLabel(selected, granularity)}</p>
+        {rangeLabel && <p className="text-xs text-muted">{rangeLabel}</p>}
       </header>
 
       {data.notice && (
@@ -155,26 +160,26 @@ export function Dashboard({ data }: { data: DashboardData }) {
         <KpiCard label="Afspraken" value={fmtNum(kpis.appointments)} hint="gepland in periode" />
       </div>
 
-      {/* Mobiel: DOM-volgorde (ongewijzigd): Insight, beste ads, grafiek, spend, ranglijst.
-          Desktop: figuren bovenaan, beste advertenties in volle breedte onderaan (via lg:order). */}
+      {/* DOM-volgorde = mobiele volgorde: figuren eerst, beste advertenties onderaan.
+          Op desktop: grafiek (8) + spend (4) op één rij, ranglijst en beste ads vol breed. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="lg:order-1 lg:col-span-12">
+        <div className="lg:col-span-12">
           <InsightPanel insight={data.insight} />
         </div>
-        <div className="lg:order-5 lg:col-span-12">
-          <TopAdsTable ads={ads} />
-        </div>
-        <div className="lg:order-2 lg:col-span-8">
+        <div className="lg:col-span-8">
           <TrendChart data={trend} title={TREND_TITLE[granularity]} />
         </div>
-        <div className="lg:order-3 lg:col-span-4">
+        <div className="lg:col-span-4">
           <SpendBreakdown rows={platforms} />
         </div>
         {project === ALL_PROJECTS && (
-          <div className="lg:order-4 lg:col-span-12">
+          <div className="lg:col-span-12">
             <LeadsRanking rows={ranking} />
           </div>
         )}
+        <div className="lg:col-span-12">
+          <TopAdsTable ads={ads} />
+        </div>
       </div>
 
       <footer className="mt-8 text-center text-xs text-muted">

@@ -29,6 +29,13 @@ export function delta(current: number, previous: number): number | null {
   return (current - previous) / previous;
 }
 
+/** Date -> "dd-mm-yyyy" (op basis van UTC, sluit aan op de ISO-week-helpers). */
+export function fmtDateNL(d: Date): string {
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `${dd}-${mm}-${d.getUTCFullYear()}`;
+}
+
 /** "2026-W24" -> "Week 24, 2026" */
 export function prettyWeek(week: string): string {
   const m = week.match(/^(\d{4})-W(\d{2})$/);
