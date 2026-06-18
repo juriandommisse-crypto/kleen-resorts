@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getDashboardData } from "@/data";
 
 // Wekelijkse refresh-endpoint, aangeroepen door Vercel Cron (zie vercel.json).
@@ -21,7 +22,8 @@ export async function GET(request: Request) {
 
   try {
     const data = await getDashboardData();
-    // TODO(live): schrijf `data` naar een cache-store voor de homepage.
+    // Ververs de gecachte homepage zodat de dagelijkse sheet-update meteen zichtbaar is.
+    revalidatePath("/");
     return NextResponse.json({
       ok: true,
       refreshedAt: data.generatedAt,
