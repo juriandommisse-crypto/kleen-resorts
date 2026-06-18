@@ -187,15 +187,16 @@ export function spendByPlatform(
 
 /**
  * Best presterende advertenties over de periode: per advertentie samengeteld,
- * alleen advertenties met MEER DAN `minLeads` leads, gesorteerd op aantal leads
- * (bij gelijk aantal laagste CPL eerst). CPL/CTR/CPC worden herberekend.
+ * alleen advertenties met meer dan `minResults` resultaten (standaard 0 = minimaal
+ * 1), gesorteerd op aantal resultaten (bij gelijk aantal laagste kosten/resultaat
+ * eerst). CPL/CTR/CPC worden herberekend.
  */
 export function topAds(
   data: DashboardData,
   project: string,
   g: Granularity,
   key: string,
-  { minLeads = 5, limit = 24 }: { minLeads?: number; limit?: number } = {},
+  { minLeads = 0, limit = 100 }: { minLeads?: number; limit?: number } = {},
 ): AdPerformance[] {
   const rows = byProject(data.adPerformance, project).filter((a) => inPeriod(a.week, g, key));
 

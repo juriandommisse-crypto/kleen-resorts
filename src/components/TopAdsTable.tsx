@@ -169,6 +169,16 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Startaantal kaarten op basis van schermbreedte (minder op mobiel). */
+function initialPageSize(): number {
+  if (typeof window === "undefined") return 8;
+  const w = window.innerWidth;
+  if (w < 640) return 4; // telefoon
+  if (w < 1024) return 6; // tablet
+  if (w < 1280) return 8; // desktop
+  return 12; // breed scherm
+}
+
 export function TopAdsTable({
   ads,
   period,
@@ -177,27 +187,68 @@ export function TopAdsTable({
   period: string;
 }) {
   const [selected, setSelected] = useState<AdPerformance | null>(null);
+  const [pageSize, setPageSize] = useState(8);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const update = () => setPageSize(initialPageSize());
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  // Reset naar de eerste "pagina" als de selectie (en dus de lijst) wijzigt.
+  useEffect(() => {
+    setPage(1);
+  }, [period, ads.length]);
+
+  const visibleCount = page * pageSize;
+  const visible = ads.slice(0, visibleCount);
+  const remaining = ads.length - visible.length;
 
   return (
     <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
       <h2 className="text-sm font-semibold text-ink">Best presterende advertenties</h2>
       <p className="text-xs text-muted">
-        Advertenties met meer dan 5 resultaten · gesorteerd op aantal resultaten · klik voor groot · Meta
+        Advertenties met minimaal 1 resultaat · gesorteerd op aantal resultaten · klik voor groot · Meta
       </p>
       <p className="mb-4 text-xs text-muted">
         Cijfers over <span className="font-medium text-ink">{period}</span>
       </p>
 
       {ads.length === 0 ? (
-        <p className="text-sm text-muted">
-          Geen advertenties met meer dan 5 resultaten in deze selectie.
-        </p>
+        <p className="text-sm text-muted">Geen advertenties met resultaten in deze selectie.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {ads.map((ad, i) => (
-            <AdCard key={ad.adId || `${ad.adName}-${i}`} ad={ad} rank={i + 1} onOpen={() => setSelected(ad)} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {visible.map((ad, i) => (
+              <AdCard key={ad.adId || `${ad.adName}-${i}`} ad={ad} rank={i + 1} onOpen={() => setSelected(ad)} />
+            ))}
+          </div>
+
+          {(remaining > 0 || page > 1) && (
+            <div className="mt-4 flex justify-center gap-3">
+              {remaining > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => p + 1)}
+                  className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark"
+                >
+                  Toon meer ({remaining})
+                </button>
+              )}
+              {page > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setPage(1)}
+                  className="rounded-full px-4 py-2 text-sm font-medium text-muted hover:text-ink"
+                >
+                  Toon minder
+                </button>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {selected && <Lightbox ad={selected} period={period} onClose={() => setSelected(null)} />}
