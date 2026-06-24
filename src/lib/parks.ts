@@ -44,6 +44,7 @@ const ALIASES: Array<[needle: string, canonical: CanonicalProject]> = [
   ["greenerwold", "Greenerwold"],
   ["gw", "Greenerwold"],
   ["huis ter huynen", "Huis ter Huynen"],
+  ["huis ter heide", "Huis ter Huynen"],
   ["hth", "Huis ter Huynen"],
   ["landgoed de huynen", "Recreatiepark Landgoed De Huynen"],
   ["stelleplas", "Recreatiepark de Stelleplas - Heinkenszand"],

@@ -61,6 +61,7 @@ interface InsightRow {
   date_start: string;
   ad_id?: string;
   ad_name?: string;
+  account_name?: string;
   campaign_name?: string;
   adset_name?: string;
   spend?: string;
@@ -106,7 +107,7 @@ function countResults(actions: InsightRow["actions"]): number {
 
 async function fetchInsights(accountId: string): Promise<InsightRow[]> {
   const { since, until } = dateRange();
-  const fields = ["ad_id", "ad_name", "campaign_name", "adset_name", "spend", "impressions", "clicks", "actions"].join(",");
+  const fields = ["ad_id", "ad_name", "account_name", "campaign_name", "adset_name", "spend", "impressions", "clicks", "actions"].join(",");
   const params = new URLSearchParams({
     level: "ad",
     fields,
@@ -306,7 +307,8 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
     if (!week || !r.ad_id) continue;
     const campaign = r.campaign_name ?? "";
     const adset = r.adset_name ?? "";
-    const project = matchProject(campaign) ?? matchProject(adset) ?? "Algemeen";
+    const account = r.account_name ?? "";
+    const project = matchProject(campaign) ?? matchProject(adset) ?? matchProject(account) ?? "Algemeen";
     const key = `${week}__${r.ad_id}`;
     const acc =
       map.get(key) ??
