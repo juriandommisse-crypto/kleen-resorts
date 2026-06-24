@@ -56,15 +56,25 @@ export async function getDashboardData(): Promise<DashboardData> {
       })
     : [];
 
-  // Wekelijkse Meta-spend afgeleid uit ad-performance; eventuele sheet-spend
-  // (Google/LinkedIn, maandbasis) volgt in fase 2.
   const sheetSpend = sheets.googleConfigured()
     ? await sheets.fetchWeeklySpend().catch((e: unknown) => {
         notices.push(`Ad spend (Google Sheets) kon niet geladen worden: ${msg(e)}`);
         return [];
       })
     : [];
-  const weeklySpend = [...deriveSpendFromAds(adPerformance), ...sheetSpend];
+
+  // Ad spend bundelen ZONDER dubbeltelling:
+  // - Meta-spend komt uit de Meta API (accuraat, recent).
+  // - Google + LinkedIn komen uit de "Spend per park"-sheet.
+  // - Voor weken die de Meta API niet dekt (>90 dagen terug) valt Meta terug
+  //   op de sheet. We laten de Meta-rijen uit de sheet dus alleen vallen voor
+  //   de weken waarin de API wél Meta-data heeft.
+  const metaSpend = deriveSpendFromAds(adPerformance);
+  const metaApiWeeks = new Set(metaSpend.map((s) => s.week));
+  const sheetSpendNoDoubleMeta = sheetSpend.filter(
+    (s) => !(s.platform === "meta" && metaApiWeeks.has(s.week)),
+  );
+  const weeklySpend = [...metaSpend, ...sheetSpendNoDoubleMeta];
 
   const projects = Array.from(new Set(weeklyLeads.map((l) => l.project))).sort();
   const currentWeek = [...weeklyLeads.map((l) => l.week)].sort().at(-1) ?? "";
