@@ -180,28 +180,23 @@ function Lightbox({
         className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Preview panel: scrollable so the full ad is always reachable */}
-        <div className="relative shrink-0 bg-neutral-100">
-          <div className="overflow-y-auto" style={{ maxHeight: "65vh" }}>
-            {proxySrc ? (
-              <iframe
-                key={proxySrc}
-                src={proxySrc}
-                title={ad.adName}
-                width={320}
-                height={700}
-                className="mx-auto block border-0"
-                style={{ width: 320, height: 700 }}
-                scrolling="no"
-              />
-            ) : ad.thumbnailUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={ad.thumbnailUrl} alt={ad.adName} className="w-full object-contain" style={{ maxHeight: "65vh" }} />
-            ) : (
-              <div className="flex w-full items-center justify-center text-5xl text-neutral-300" style={{ height: "65vh" }}>🖼️</div>
-            )}
-          </div>
-          {/* Controls stay fixed over the preview while the user scrolls */}
+        <div className="relative flex h-[65vh] shrink-0 items-center justify-center overflow-hidden bg-[#f5f5f5]">
+          {proxySrc ? (
+            // The proxy page scales the 320×700 Meta preview to fill this container,
+            // so the full ad is always visible without scrolling.
+            <iframe
+              key={proxySrc}
+              src={proxySrc}
+              title={ad.adName}
+              className="h-full w-full border-0"
+              scrolling="no"
+            />
+          ) : ad.thumbnailUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={ad.thumbnailUrl} alt={ad.adName} className="h-full w-full object-contain" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-5xl text-neutral-300">🖼️</div>
+          )}
           <button
             type="button"
             onClick={onClose}

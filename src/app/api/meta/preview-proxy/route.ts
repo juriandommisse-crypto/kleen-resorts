@@ -34,20 +34,28 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Embed Meta's preview URL inside our own page so the browser loads it directly
-  // (Meta's preview_iframe.php requires Facebook session cookies — server-side
-  // fetching always fails with 400). The absolute-positioned white shield covers
-  // the bottom ~160px of the 700px Meta frame where the cookie banner appears
-  // on mobile. Using absolute (not fixed) means it only covers that region in
-  // the 700px coordinate space, so in the lightbox (which shows the top ~500px)
-  // it doesn't hide visible ad content.
+  // The proxy returns a wrapper page that embeds Meta's preview URL directly.
+  // Meta's preview_iframe.php requires Facebook session cookies so it cannot
+  // be fetched server-side — the browser loads it with the user's cookies.
+  //
+  // The wrapper scales the 320×700 Meta preview to fill the available viewport
+  // (using CSS transform on a wrapper div) so the full ad is always visible
+  // at any container size — no scrolling needed. The shield div covers the
+  // bottom ~160px of the 700px frame where Meta's GDPR cookie banner appears
+  // on mobile (no Facebook session), and scales with the content.
   const html = `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-  html, body { width:320px; height:700px; overflow:hidden; background:#fff; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#f5f5f5; }
+  .wrap {
+    width:320px; height:700px;
+    transform-origin:top center;
+    position:relative;
+    margin:0 auto;
+  }
   iframe { display:block; border:0; width:320px; height:700px; }
   .shield {
     position:absolute; top:540px; left:0;
@@ -56,10 +64,20 @@ export async function GET(req: NextRequest) {
     pointer-events:none;
   }
 </style>
+<script>
+  function fit() {
+    var s = Math.min(window.innerWidth / 320, window.innerHeight / 700);
+    document.getElementById('w').style.transform = 'scale(' + s + ')';
+  }
+  document.addEventListener('DOMContentLoaded', fit);
+  window.addEventListener('resize', fit);
+</script>
 </head>
 <body>
-  <iframe src="${previewSrc}" scrolling="no" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
-  <div class="shield"></div>
+  <div id="w" class="wrap">
+    <iframe src="${previewSrc}" scrolling="no" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+    <div class="shield"></div>
+  </div>
 </body>
 </html>`;
 
