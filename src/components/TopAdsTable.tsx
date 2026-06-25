@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { AdPerformance } from "@/lib/types";
 import { fmtEur, fmtEur2, fmtNum, fmtPct } from "@/lib/format";
 
@@ -11,62 +11,6 @@ function statusClasses(status: string): string {
   if (["gepauzeerd", "afgekeurd", "gearchiveerd", "verwijderd"].some((x) => s.includes(x)))
     return "bg-rose-100 text-rose-700";
   return "bg-black/10 text-ink";
-}
-
-/** Scaled-down Meta ad preview; lazy-loads via IntersectionObserver. */
-function AdCardPreview({ adId }: { adId: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
-  const [scale, setScale] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  // Facebook mobile feed preview has ~130px of header (profile + "Advertentie" label)
-  // before the actual ad image. Skip it so the visual fills the card.
-  const HEADER_OFFSET = 130;
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0].isIntersecting) return;
-        observer.disconnect();
-        setScale(el.offsetWidth / 375);
-        fetch(`/api/meta/preview?adId=${encodeURIComponent(adId)}&format=MOBILE_FEED_STANDARD`)
-          .then((r) => r.json())
-          .then((d: { src?: string }) => {
-            if (d.src) setIframeSrc(d.src);
-            setLoading(false);
-          })
-          .catch(() => setLoading(false));
-      },
-      { threshold: 0.1 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [adId]);
-
-  return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-neutral-100">
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-        </div>
-      )}
-      {!loading && !iframeSrc && (
-        <div className="absolute inset-0 flex items-center justify-center text-3xl text-brand/40">🖼️</div>
-      )}
-      {iframeSrc && scale > 0 && (
-        <div className="absolute inset-0 overflow-hidden">
-          <div style={{ position: "absolute", top: `-${Math.round(HEADER_OFFSET * scale)}px`, left: 0, pointerEvents: "none" }}>
-            <div style={{ width: 375, height: 700, transformOrigin: "top left", transform: `scale(${scale})` }}>
-              <iframe src={iframeSrc} width={375} height={700} style={{ border: 0, display: "block" }} scrolling="no" />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 function AdCard({
@@ -87,9 +31,7 @@ function AdCard({
         className="group relative block aspect-[4/3] w-full cursor-zoom-in bg-brand-light"
         aria-label={`Vergroot advertentie ${ad.adName}`}
       >
-        {ad.platform === "meta" ? (
-          <AdCardPreview adId={ad.adId} />
-        ) : ad.thumbnailUrl ? (
+        {ad.thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={ad.thumbnailUrl}
