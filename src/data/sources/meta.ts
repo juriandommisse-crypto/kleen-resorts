@@ -287,12 +287,12 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
           const fromHash = hashesOf(ad.creative)
             .map((h) => imgByHash.get(h))
             .find(Boolean);
-          // Hash-based = volledige resolutie (scherp). thumbnail_url als fallback voor ads
-          // zonder hash (bv. video-ads waarbij alleen een stills-thumbnail beschikbaar is).
+          // thumbnail_url = gerenderde ad-visual met tekst/overlays (wat de gebruiker ziet).
+          // hash-based als fallback voor ads zonder thumbnail (bv. sommige carousel-ads).
           const thumb =
+            ad.creative?.thumbnail_url ??
             fromHash ??
             pictureUrl(ad.creative) ??
-            ad.creative?.thumbnail_url ??
             null;
           const previewUrl = ad.preview_shareable_link ?? null;
           return [ad.id, { status: statusLabel(ad.effective_status, learning), thumb, previewUrl }] as const;
