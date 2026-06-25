@@ -186,7 +186,10 @@ function Lightbox({
               key={proxySrc}
               src={proxySrc}
               title={ad.adName}
-              className="h-full w-full border-0"
+              width={320}
+              className="h-full border-0"
+              style={{ width: 320, flexShrink: 0 }}
+              scrolling="no"
             />
           ) : ad.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

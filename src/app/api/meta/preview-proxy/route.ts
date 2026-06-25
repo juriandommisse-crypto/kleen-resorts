@@ -36,8 +36,11 @@ export async function GET(req: NextRequest) {
 
   // Embed Meta's preview URL inside our own page so the browser loads it directly
   // (Meta's preview_iframe.php requires Facebook session cookies — server-side
-  // fetching always fails with 400). The fixed white overlay at the bottom
-  // visually suppresses Meta's cookie consent banner on mobile.
+  // fetching always fails with 400). The absolute-positioned white shield covers
+  // the bottom ~160px of the 700px Meta frame where the cookie banner appears
+  // on mobile. Using absolute (not fixed) means it only covers that region in
+  // the 700px coordinate space, so in the lightbox (which shows the top ~500px)
+  // it doesn't hide visible ad content.
   const html = `<!doctype html>
 <html>
 <head>
@@ -47,7 +50,7 @@ export async function GET(req: NextRequest) {
   html, body { width:320px; height:700px; overflow:hidden; background:#fff; }
   iframe { display:block; border:0; width:320px; height:700px; }
   .shield {
-    position:fixed; bottom:0; left:0;
+    position:absolute; top:540px; left:0;
     width:320px; height:160px;
     background:#fff; z-index:99999;
     pointer-events:none;
