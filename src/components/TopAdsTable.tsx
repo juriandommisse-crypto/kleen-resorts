@@ -13,13 +13,11 @@ function statusClasses(status: string): string {
   return "bg-black/10 text-ink";
 }
 
-/** Card thumbnail: proxied Meta preview (no cookie popup, no blurry thumbnail). */
+/** Card thumbnail: proxied Meta preview — no cookie popup, no blurry thumbnail. */
 function AdCardPreview({ adId }: { adId: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [src, setSrc] = useState<string | null>(null);
-  // Facebook feed header (profile + "Advertentie") is ~130px; skip it so the
-  // ad image fills the card.
-  const HEADER_OFFSET = 130;
+  const [loaded, setLoaded] = useState(false);
   const [scale, setScale] = useState(0);
 
   useEffect(() => {
@@ -29,7 +27,8 @@ function AdCardPreview({ adId }: { adId: string }) {
       (entries) => {
         if (!entries[0].isIntersecting) return;
         observer.disconnect();
-        setScale(el.offsetWidth / 375);
+        // MOBILE_FEED_STANDARD preview is 320px wide; scale to fit card.
+        setScale(el.offsetWidth / 320);
         setSrc(`/api/meta/preview-proxy?adId=${encodeURIComponent(adId)}&format=MOBILE_FEED_STANDARD`);
       },
       { threshold: 0.1 },
@@ -40,17 +39,23 @@ function AdCardPreview({ adId }: { adId: string }) {
 
   return (
     <div ref={ref} className="relative h-full w-full overflow-hidden bg-neutral-100">
-      {!src && (
-        <div className="absolute inset-0 flex items-center justify-center">
+      {/* Spinner until iframe is fully loaded */}
+      {!loaded && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" />
         </div>
       )}
       {src && scale > 0 && (
         <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: "none" }}>
-          <div style={{ position: "absolute", top: `-${Math.round(HEADER_OFFSET * scale)}px`, left: 0 }}>
-            <div style={{ width: 375, height: 700, transformOrigin: "top left", transform: `scale(${scale})` }}>
-              <iframe src={src} width={375} height={700} style={{ border: 0, display: "block" }} scrolling="no" />
-            </div>
+          <div style={{ width: 320, height: 700, transformOrigin: "top left", transform: `scale(${scale})` }}>
+            <iframe
+              src={src}
+              width={320}
+              height={700}
+              style={{ border: 0, display: "block" }}
+              scrolling="no"
+              onLoad={() => setLoaded(true)}
+            />
           </div>
         </div>
       )}
@@ -73,7 +78,7 @@ function AdCard({
       <button
         type="button"
         onClick={onOpen}
-        className="group relative block aspect-[4/3] w-full cursor-zoom-in bg-brand-light"
+        className="group relative block aspect-[9/16] w-full cursor-zoom-in bg-brand-light"
         aria-label={`Vergroot advertentie ${ad.adName}`}
       >
         {ad.platform === "meta" ? (
