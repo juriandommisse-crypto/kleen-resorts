@@ -114,12 +114,19 @@ function Lightbox({
         className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative flex h-[40vh] shrink-0 items-center justify-center bg-black sm:h-[55vh]">
-          {ad.thumbnailUrl ? (
+        <div className="relative flex h-[55vh] shrink-0 items-center justify-center bg-neutral-100 sm:h-[65vh]">
+          {ad.previewUrl ? (
+            <iframe
+              src={ad.previewUrl}
+              title={ad.adName}
+              className="h-full w-full border-0"
+              sandbox="allow-scripts allow-same-origin allow-popups"
+            />
+          ) : ad.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={ad.thumbnailUrl} alt={ad.adName} className="h-full w-full object-contain" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-5xl text-white/40">🖼️</div>
+            <div className="flex h-full w-full items-center justify-center text-5xl text-neutral-300">🖼️</div>
           )}
           <button
             type="button"

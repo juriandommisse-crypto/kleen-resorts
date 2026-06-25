@@ -41,8 +41,10 @@ export interface AdPerformance {
   adName: string;
   /** Weergavestatus uit Meta: "Actief", "Leren", "Gepauzeerd", … */
   status: string;
-  /** URL van de creative-thumbnail (of null als onbekend). */
+  /** URL van de rendered creative-thumbnail (of null als onbekend). */
   thumbnailUrl: string | null;
+  /** Deelbare preview-link in Meta Ads Manager (of null als onbekend). */
+  previewUrl: string | null;
   spendEur: number;
   impressions: number;
   clicks: number;

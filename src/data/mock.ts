@@ -107,6 +107,7 @@ function buildAdPerformance(): AdPerformance[] {
           adName: `${tpl.ad} #${pi + 1}.${ti + 1}`,
           status: ti % 3 === 0 ? "Leren" : "Actief",
           thumbnailUrl: null,
+          previewUrl: null,
           spendEur,
           impressions,
           clicks,

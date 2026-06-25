@@ -143,6 +143,7 @@ interface Creative {
   image_url?: string;
   thumbnail_url?: string;
   image_hash?: string;
+  preview_shareable_link?: string;
   object_story_spec?: {
     link_data?: { picture?: string; image_hash?: string };
     photo_data?: { url?: string; image_hash?: string };
@@ -161,7 +162,7 @@ interface AdRow {
 
 async function fetchAds(accountId: string): Promise<AdRow[]> {
   const creativeFields =
-    "image_url,thumbnail_url,image_hash,object_story_spec,asset_feed_spec";
+    "image_url,thumbnail_url,image_hash,preview_shareable_link,object_story_spec,asset_feed_spec";
   const params = new URLSearchParams({
     fields: `id,name,effective_status,adset_id,creative{${creativeFields}}`,
     thumbnail_width: "600",
@@ -255,7 +256,7 @@ function statusLabel(effectiveStatus: string | undefined, learning: string | und
   return "Actief";
 }
 
-type AdMeta = { status: string; thumb: string | null };
+type AdMeta = { status: string; thumb: string | null; previewUrl: string | null };
 
 // ---------------------------------------------------------------------------
 
@@ -286,8 +287,15 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
           const fromHash = hashesOf(ad.creative)
             .map((h) => imgByHash.get(h))
             .find(Boolean);
-          const thumb = fromHash ?? pictureUrl(ad.creative) ?? ad.creative?.thumbnail_url ?? null;
-          return [ad.id, { status: statusLabel(ad.effective_status, learning), thumb }] as const;
+          // thumbnail_url = door Meta gerenderde preview (met format-overlays) — hogere prioriteit
+          // dan de rauwe hash-gebaseerde afbeelding.
+          const thumb =
+            ad.creative?.thumbnail_url ??
+            fromHash ??
+            pictureUrl(ad.creative) ??
+            null;
+          const previewUrl = ad.creative?.preview_shareable_link ?? null;
+          return [ad.id, { status: statusLabel(ad.effective_status, learning), thumb, previewUrl }] as const;
         });
 
         return { ins, entries, err: null as string | null };
@@ -361,6 +369,7 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
       adName: a.adName,
       status: meta?.status ?? "Onbekend",
       thumbnailUrl: meta?.thumb ?? null,
+      previewUrl: meta?.previewUrl ?? null,
       spendEur: Math.round(a.spendEur),
       impressions: a.impressions,
       clicks: a.clicks,
