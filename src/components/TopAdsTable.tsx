@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AdPerformance } from "@/lib/types";
 import { fmtEur, fmtEur2, fmtNum, fmtPct } from "@/lib/format";
 
@@ -11,6 +11,51 @@ function statusClasses(status: string): string {
   if (["gepauzeerd", "afgekeurd", "gearchiveerd", "verwijderd"].some((x) => s.includes(x)))
     return "bg-rose-100 text-rose-700";
   return "bg-black/10 text-ink";
+}
+
+/** Card thumbnail: proxied Meta preview (no cookie popup, no blurry thumbnail). */
+function AdCardPreview({ adId }: { adId: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [src, setSrc] = useState<string | null>(null);
+  // Facebook feed header (profile + "Advertentie") is ~130px; skip it so the
+  // ad image fills the card.
+  const HEADER_OFFSET = 130;
+  const [scale, setScale] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        observer.disconnect();
+        setScale(el.offsetWidth / 375);
+        setSrc(`/api/meta/preview-proxy?adId=${encodeURIComponent(adId)}&format=MOBILE_FEED_STANDARD`);
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [adId]);
+
+  return (
+    <div ref={ref} className="relative h-full w-full overflow-hidden bg-neutral-100">
+      {!src && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+        </div>
+      )}
+      {src && scale > 0 && (
+        <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: "none" }}>
+          <div style={{ position: "absolute", top: `-${Math.round(HEADER_OFFSET * scale)}px`, left: 0 }}>
+            <div style={{ width: 375, height: 700, transformOrigin: "top left", transform: `scale(${scale})` }}>
+              <iframe src={src} width={375} height={700} style={{ border: 0, display: "block" }} scrolling="no" />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AdCard({
@@ -31,7 +76,9 @@ function AdCard({
         className="group relative block aspect-[4/3] w-full cursor-zoom-in bg-brand-light"
         aria-label={`Vergroot advertentie ${ad.adName}`}
       >
-        {ad.thumbnailUrl ? (
+        {ad.platform === "meta" ? (
+          <AdCardPreview adId={ad.adId} />
+        ) : ad.thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={ad.thumbnailUrl}
@@ -101,8 +148,6 @@ function Lightbox({
   onClose: () => void;
 }) {
   const [format, setFormat] = useState<string>("MOBILE_FEED_STANDARD");
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -114,16 +159,10 @@ function Lightbox({
     };
   }, [onClose]);
 
-  useEffect(() => {
-    if (ad.platform !== "meta") return;
-    setLoading(true);
-    setPreviewHtml(null);
-    fetch(`/api/meta/preview?adId=${encodeURIComponent(ad.adId)}&format=${format}`)
-      .then((r) => r.json())
-      .then((d: { body?: string }) => setPreviewHtml(d.body ?? null))
-      .catch(() => setPreviewHtml(null))
-      .finally(() => setLoading(false));
-  }, [ad.adId, ad.platform, format]);
+  const proxySrc =
+    ad.platform === "meta"
+      ? `/api/meta/preview-proxy?adId=${encodeURIComponent(ad.adId)}&format=${format}`
+      : null;
 
   return (
     <div
@@ -137,12 +176,12 @@ function Lightbox({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative flex h-[55vh] shrink-0 items-center justify-center bg-neutral-100 sm:h-[65vh]">
-          {loading ? (
-            <div className="flex h-full w-full items-center justify-center text-sm text-muted">Laden…</div>
-          ) : previewHtml ? (
-            <div
-              className="flex h-full w-full items-center justify-center overflow-hidden [&_iframe]:max-h-full [&_iframe]:border-0"
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
+          {proxySrc ? (
+            <iframe
+              key={proxySrc}
+              src={proxySrc}
+              title={ad.adName}
+              className="h-full w-full border-0"
             />
           ) : ad.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
