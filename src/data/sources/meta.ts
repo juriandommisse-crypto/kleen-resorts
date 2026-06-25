@@ -9,6 +9,24 @@ import type { AdPerformance, Platform } from "@/lib/types";
 import { matchProject } from "@/lib/parks";
 import { isoWeekKey } from "@/lib/format";
 
+const PARK_ABBREVS: Record<string, string> = {
+  "Fryske Mar - Resort Balk": "FM",
+  "Greenerwold": "GW",
+  "Wiedeweer": "WW",
+  "Huis ter Huynen": "HTH",
+  "Resort Oysterduinen - Yerseke": "OYS",
+};
+
+/** Prefix generieke ad-namen (bv. "Afbeelding") met de park-afkorting zodat
+ *  ze onderscheidend zijn in het dashboard en de AI-samenvatting. */
+function enrichAdName(raw: string, project: string): string {
+  if (!raw) return raw;
+  if (/^[A-Z]{2,5}\s*[|·]/.test(raw)) return raw; // al geprefixed
+  const abbrev = PARK_ABBREVS[project];
+  if (abbrev) return `${abbrev} | ${raw}`;
+  return raw;
+}
+
 const GRAPH = "https://graph.facebook.com";
 
 export function metaConfigured(): boolean {
@@ -318,7 +336,7 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
         project,
         campaignName: campaign,
         adsetName: adset,
-        adName: r.ad_name ?? "",
+        adName: enrichAdName(r.ad_name ?? "", project),
         spendEur: 0,
         impressions: 0,
         clicks: 0,

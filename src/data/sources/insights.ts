@@ -33,6 +33,8 @@ LEVER:
 - Een kop (max 8 woorden) en 3 tot 5 bullets.
 - Elke bullet = één concreet inzicht MET duiding of actie — geen kale opsomming van cijfers. Gebruik echte getallen en parknamen.
 - Benoem: de trend t.o.v. de vorige periode(s) (stijgt/daalt), welk park het efficiëntst is (laagste kosten per resultaat) versus het meeste volume, en de best én zwakst presterende advertentie bij naam.
+- BELANGRIJK over getallen: noem absolute cijfers (leads, CPL) ALTIJD voor de meest recente periode in de data — niet opgeteld over meerdere periodes. Gebruik oudere periodes alleen voor trendduiding ("steeg van X naar Y").
+- Noem advertentienamen ALTIJD tussen enkele aanhalingstekens, exact zoals ze in de data staan. Bijvoorbeeld: 'FM | BT | Afbeelding'.
 - BELANGRIJK over aanbevelingen: de lezer heeft GEEN invloed op budget, opschalen of pauzeren van advertenties. Aanbevelingen richten zich op feedback aan het marketingbureau Booking Boosters — denk aan: andere visuals of advertentieteksten laten testen bij zwak presterende ads, of een succesvolle visual/insteek breder inzetten. Adviseer dus nooit "budget verhogen/verlagen" of "ad pauzeren".
 
 STIJL:

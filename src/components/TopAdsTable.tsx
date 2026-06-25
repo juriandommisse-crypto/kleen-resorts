@@ -23,7 +23,7 @@ function AdCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+    <div id={`ad-${ad.adId}`} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
       {/* Creative-visual — klik om te vergroten */}
       <button
         type="button"

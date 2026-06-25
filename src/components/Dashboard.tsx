@@ -55,6 +55,10 @@ export function Dashboard({ data }: { data: DashboardData }) {
     () => topAds(data, project, granularity, selected),
     [data, project, granularity, selected],
   );
+  const adNameToId = useMemo(
+    () => Object.fromEntries(data.adPerformance.map((a) => [a.adName, a.adId])),
+    [data.adPerformance],
+  );
   const ranking = useMemo(
     () => leadsByProject(data, granularity, selected),
     [data, granularity, selected],
@@ -158,7 +162,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
           Op desktop: grafiek + ranglijst naast elkaar, beste ads in volle breedte. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-12">
-          <InsightPanel insight={data.insights[granularity]} />
+          <InsightPanel insight={data.insights[granularity]} adNameToId={adNameToId} />
         </div>
         <div className={project === ALL_PROJECTS ? "h-full lg:col-span-8" : "lg:col-span-12"}>
           <TrendChart data={trend} title={TREND_TITLE[granularity]} />
