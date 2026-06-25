@@ -209,6 +209,17 @@ export function TopAdsTable({
     setPage(1);
   }, [period, ads.length]);
 
+  // Open lightbox vanuit InsightPanel anchor-links.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { adId } = (e as CustomEvent<{ adId: string }>).detail;
+      const ad = ads.find((a) => a.adId === adId);
+      if (ad) setSelected(ad);
+    };
+    document.addEventListener("open-ad", handler);
+    return () => document.removeEventListener("open-ad", handler);
+  }, [ads]);
+
   const visibleCount = page * pageSize;
   const visible = ads.slice(0, visibleCount);
   const remaining = ads.length - visible.length;

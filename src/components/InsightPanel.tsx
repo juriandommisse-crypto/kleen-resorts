@@ -28,9 +28,10 @@ function BulletText({
                   const el = document.getElementById(`ad-${id}`);
                   if (el) {
                     el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    el.classList.add("ring-2", "ring-white");
-                    setTimeout(() => el.classList.remove("ring-2", "ring-white"), 2000);
                   }
+                  document.dispatchEvent(
+                    new CustomEvent("open-ad", { detail: { adId: id } }),
+                  );
                 }}
               >
                 {name}
