@@ -84,6 +84,13 @@ function AdCard({
   );
 }
 
+const FORMATS = [
+  { key: "MOBILE_FEED_STANDARD", label: "Facebook" },
+  { key: "INSTAGRAM_STANDARD", label: "Instagram" },
+  { key: "DESKTOP_FEED_STANDARD", label: "Desktop" },
+  { key: "INSTAGRAM_STORY", label: "Story" },
+] as const;
+
 function Lightbox({
   ad,
   period,
@@ -93,6 +100,10 @@ function Lightbox({
   period: string;
   onClose: () => void;
 }) {
+  const [format, setFormat] = useState<string>("MOBILE_FEED_STANDARD");
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -102,6 +113,17 @@ function Lightbox({
       document.body.style.overflow = "";
     };
   }, [onClose]);
+
+  useEffect(() => {
+    if (ad.platform !== "meta") return;
+    setLoading(true);
+    setPreviewHtml(null);
+    fetch(`/api/meta/preview?adId=${encodeURIComponent(ad.adId)}&format=${format}`)
+      .then((r) => r.json())
+      .then((d: { body?: string }) => setPreviewHtml(d.body ?? null))
+      .catch(() => setPreviewHtml(null))
+      .finally(() => setLoading(false));
+  }, [ad.adId, ad.platform, format]);
 
   return (
     <div
@@ -115,12 +137,12 @@ function Lightbox({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative flex h-[55vh] shrink-0 items-center justify-center bg-neutral-100 sm:h-[65vh]">
-          {ad.previewUrl ? (
-            <iframe
-              src={ad.previewUrl}
-              title={ad.adName}
-              className="h-full w-full border-0"
-              sandbox="allow-scripts allow-same-origin allow-popups"
+          {loading ? (
+            <div className="flex h-full w-full items-center justify-center text-sm text-muted">Laden…</div>
+          ) : previewHtml ? (
+            <div
+              className="flex h-full w-full items-center justify-center overflow-hidden [&_iframe]:max-h-full [&_iframe]:border-0"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           ) : ad.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -142,6 +164,25 @@ function Lightbox({
             {ad.status}
           </span>
         </div>
+
+        {ad.platform === "meta" && (
+          <div className="flex gap-1 border-b border-black/5 px-4 py-2">
+            {FORMATS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFormat(f.key)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  format === f.key
+                    ? "bg-brand text-white"
+                    : "text-muted hover:bg-brand-light hover:text-ink"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="overflow-y-auto p-5">
           <h3 className="text-base font-semibold text-ink">{ad.adName || "—"}</h3>
