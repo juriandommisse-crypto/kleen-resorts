@@ -143,7 +143,6 @@ interface Creative {
   image_url?: string;
   thumbnail_url?: string;
   image_hash?: string;
-  preview_shareable_link?: string;
   object_story_spec?: {
     link_data?: { picture?: string; image_hash?: string };
     photo_data?: { url?: string; image_hash?: string };
@@ -157,14 +156,15 @@ interface AdRow {
   name?: string;
   effective_status?: string;
   adset_id?: string;
+  preview_shareable_link?: string;
   creative?: Creative;
 }
 
 async function fetchAds(accountId: string): Promise<AdRow[]> {
   const creativeFields =
-    "image_url,thumbnail_url,image_hash,preview_shareable_link,object_story_spec,asset_feed_spec";
+    "image_url,thumbnail_url,image_hash,object_story_spec,asset_feed_spec";
   const params = new URLSearchParams({
-    fields: `id,name,effective_status,adset_id,creative{${creativeFields}}`,
+    fields: `id,name,effective_status,adset_id,preview_shareable_link,creative{${creativeFields}}`,
     thumbnail_width: "600",
     thumbnail_height: "600",
     limit: "500",
@@ -294,7 +294,7 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
             fromHash ??
             pictureUrl(ad.creative) ??
             null;
-          const previewUrl = ad.creative?.preview_shareable_link ?? null;
+          const previewUrl = ad.preview_shareable_link ?? null;
           return [ad.id, { status: statusLabel(ad.effective_status, learning), thumb, previewUrl }] as const;
         });
 
