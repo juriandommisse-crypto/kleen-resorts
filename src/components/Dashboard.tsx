@@ -74,6 +74,12 @@ export function Dashboard({ data }: { data: DashboardData }) {
   const range = selected ? periodRange(selected, granularity) : null;
   const rangeLabel = range ? `${fmtDateNL(range.start)} – ${fmtDateNL(range.end)}` : "";
 
+  // Datum die bij de AI-analyse hoort: de periode waarvoor de analyse is gegenereerd,
+  // niet de geselecteerde periode (die kan afwijken).
+  const insightWeek = data.insights[granularity]?.week;
+  const insightRange = insightWeek ? periodRange(insightWeek, granularity) : null;
+  const insightRangeLabel = insightRange ? `${fmtDateNL(insightRange.start)} – ${fmtDateNL(insightRange.end)}` : "";
+
   return (
     <main className="mx-auto max-w-2xl px-4 pb-16 pt-6 lg:max-w-6xl">
       <header className="mb-5">
@@ -162,7 +168,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
           Op desktop: grafiek + ranglijst naast elkaar, beste ads in volle breedte. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-12">
-          <InsightPanel insight={data.insights[granularity]} adNameToId={adNameToId} periodLabel={periodLabel(selected, granularity)} rangeLabel={rangeLabel} />
+          <InsightPanel insight={data.insights[granularity]} adNameToId={adNameToId} periodLabel={insightWeek ? periodLabel(insightWeek, granularity) : ""} rangeLabel={insightRangeLabel} />
         </div>
         <div className={project === ALL_PROJECTS ? "h-full lg:col-span-8" : "lg:col-span-12"}>
           <TrendChart data={trend} title={TREND_TITLE[granularity]} />

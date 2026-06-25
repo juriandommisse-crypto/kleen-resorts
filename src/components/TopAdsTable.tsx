@@ -14,10 +14,15 @@ function statusClasses(status: string): string {
 }
 
 /** Scaled-down Meta ad preview; lazy-loads via IntersectionObserver. */
-function AdCardPreview({ adId, thumbnailUrl, adName }: { adId: string; thumbnailUrl: string | null; adName: string }) {
+function AdCardPreview({ adId }: { adId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Facebook mobile feed preview has ~130px of header (profile + "Advertentie" label)
+  // before the actual ad image. Skip it so the visual fills the card.
+  const HEADER_OFFSET = 130;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -29,8 +34,11 @@ function AdCardPreview({ adId, thumbnailUrl, adName }: { adId: string; thumbnail
         setScale(el.offsetWidth / 375);
         fetch(`/api/meta/preview?adId=${encodeURIComponent(adId)}&format=MOBILE_FEED_STANDARD`)
           .then((r) => r.json())
-          .then((d: { src?: string }) => { if (d.src) setIframeSrc(d.src); })
-          .catch(() => {});
+          .then((d: { src?: string }) => {
+            if (d.src) setIframeSrc(d.src);
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
       },
       { threshold: 0.1 },
     );
@@ -39,21 +47,21 @@ function AdCardPreview({ adId, thumbnailUrl, adName }: { adId: string; thumbnail
   }, [adId]);
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden">
-      {/* Thumbnail als achtergrond terwijl preview laadt */}
-      {thumbnailUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={thumbnailUrl} alt={adName} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-      ) : (
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-neutral-100">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+        </div>
+      )}
+      {!loading && !iframeSrc && (
         <div className="absolute inset-0 flex items-center justify-center text-3xl text-brand/40">🖼️</div>
       )}
-      {/* Gerenderde Meta-preview over de thumbnail */}
-      {iframeSrc && (
+      {iframeSrc && scale > 0 && (
         <div className="absolute inset-0 overflow-hidden">
-          <div
-            style={{ width: 375, height: 700, transformOrigin: "top left", transform: `scale(${scale})`, pointerEvents: "none" }}
-          >
-            <iframe src={iframeSrc} width={375} height={700} style={{ border: 0, display: "block" }} scrolling="no" />
+          <div style={{ position: "absolute", top: `-${Math.round(HEADER_OFFSET * scale)}px`, left: 0, pointerEvents: "none" }}>
+            <div style={{ width: 375, height: 700, transformOrigin: "top left", transform: `scale(${scale})` }}>
+              <iframe src={iframeSrc} width={375} height={700} style={{ border: 0, display: "block" }} scrolling="no" />
+            </div>
           </div>
         </div>
       )}
@@ -80,7 +88,7 @@ function AdCard({
         aria-label={`Vergroot advertentie ${ad.adName}`}
       >
         {ad.platform === "meta" ? (
-          <AdCardPreview adId={ad.adId} thumbnailUrl={ad.thumbnailUrl} adName={ad.adName} />
+          <AdCardPreview adId={ad.adId} />
         ) : ad.thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
