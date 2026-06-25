@@ -30,6 +30,12 @@ export async function GET(req: NextRequest) {
 
   const json = (await res.json()) as { data: Array<{ body: string }> };
   const body = json.data?.[0]?.body ?? null;
-  return NextResponse.json({ body, format });
+  // Extraheer de iframe src zodat we die direct kunnen embedden.
+  let src: string | null = null;
+  if (body) {
+    const m = body.match(/src="([^"]+)"/);
+    if (m?.[1]) src = m[1].replace(/&amp;/g, "&");
+  }
+  return NextResponse.json({ body, src, format });
 }
 

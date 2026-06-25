@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AdPerformance } from "@/lib/types";
 import { fmtEur, fmtEur2, fmtNum, fmtPct } from "@/lib/format";
 
@@ -11,6 +11,54 @@ function statusClasses(status: string): string {
   if (["gepauzeerd", "afgekeurd", "gearchiveerd", "verwijderd"].some((x) => s.includes(x)))
     return "bg-rose-100 text-rose-700";
   return "bg-black/10 text-ink";
+}
+
+/** Scaled-down Meta ad preview; lazy-loads via IntersectionObserver. */
+function AdCardPreview({ adId, thumbnailUrl, adName }: { adId: string; thumbnailUrl: string | null; adName: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        observer.disconnect();
+        setScale(el.offsetWidth / 375);
+        fetch(`/api/meta/preview?adId=${encodeURIComponent(adId)}&format=MOBILE_FEED_STANDARD`)
+          .then((r) => r.json())
+          .then((d: { src?: string }) => { if (d.src) setIframeSrc(d.src); })
+          .catch(() => {});
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [adId]);
+
+  return (
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden">
+      {/* Thumbnail als achtergrond terwijl preview laadt */}
+      {thumbnailUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumbnailUrl} alt={adName} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-3xl text-brand/40">🖼️</div>
+      )}
+      {/* Gerenderde Meta-preview over de thumbnail */}
+      {iframeSrc && (
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            style={{ width: 375, height: 700, transformOrigin: "top left", transform: `scale(${scale})`, pointerEvents: "none" }}
+          >
+            <iframe src={iframeSrc} width={375} height={700} style={{ border: 0, display: "block" }} scrolling="no" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AdCard({
@@ -31,7 +79,9 @@ function AdCard({
         className="group relative block aspect-[4/3] w-full cursor-zoom-in bg-brand-light"
         aria-label={`Vergroot advertentie ${ad.adName}`}
       >
-        {ad.thumbnailUrl ? (
+        {ad.platform === "meta" ? (
+          <AdCardPreview adId={ad.adId} thumbnailUrl={ad.thumbnailUrl} adName={ad.adName} />
+        ) : ad.thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={ad.thumbnailUrl}

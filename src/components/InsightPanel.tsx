@@ -49,14 +49,23 @@ function BulletText({
 export function InsightPanel({
   insight,
   adNameToId = {},
+  periodLabel,
+  rangeLabel,
 }: {
   insight: WeeklyInsight | null;
   adNameToId?: Record<string, string>;
+  periodLabel?: string;
+  rangeLabel?: string;
 }) {
   return (
     <div className="rounded-2xl bg-brand p-5 text-white shadow-sm">
-      <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-white/70">
-        <span>✨ Slimme samenvatting</span>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-white/70">✨ AI-analyse</span>
+        {(periodLabel || rangeLabel) && (
+          <span className="text-xs text-white/50">
+            {periodLabel}{rangeLabel ? ` · ${rangeLabel}` : ""}
+          </span>
+        )}
       </div>
       {insight ? (
         <>
@@ -74,8 +83,8 @@ export function InsightPanel({
         </>
       ) : (
         <p className="text-sm text-white/90">
-          Voeg een OpenAI API-key toe om hier wekelijks een automatische duiding
-          van de cijfers te laten verschijnen.
+          Voeg een OpenAI API-key toe om hier automatisch een AI-analyse van de
+          cijfers te laten verschijnen.
         </p>
       )}
     </div>
