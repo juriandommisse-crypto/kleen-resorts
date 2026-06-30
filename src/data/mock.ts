@@ -108,6 +108,7 @@ function buildAdPerformance(): AdPerformance[] {
           status: ti % 3 === 0 ? "Leren" : "Actief",
           thumbnailUrl: null,
           previewUrl: null,
+          creative: null,
           spendEur,
           impressions,
           clicks,

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { AdPerformance } from "@/lib/types";
 import { fmtEur, fmtEur2, fmtNum, fmtPct } from "@/lib/format";
+import { MetaAdPreview } from "./MetaAdPreview";
 
 function statusClasses(status: string): string {
   const s = status.toLowerCase();
@@ -13,51 +14,27 @@ function statusClasses(status: string): string {
   return "bg-black/10 text-ink";
 }
 
-/** Card thumbnail: proxied Meta preview — no cookie popup, no blurry thumbnail. */
-function AdCardPreview({ adId }: { adId: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [src, setSrc] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [scale, setScale] = useState(0);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0].isIntersecting) return;
-        observer.disconnect();
-        // MOBILE_FEED_STANDARD preview is 320px wide; scale to fit card.
-        setScale(el.offsetWidth / 320);
-        setSrc(`/api/meta/preview-proxy?adId=${encodeURIComponent(adId)}&format=MOBILE_FEED_STANDARD`);
-      },
-      { threshold: 0.1 },
+/** Card-visual: de échte creative-afbeelding, bijgesneden (geen cookie-melding). */
+function AdCardPreview({ ad }: { ad: AdPerformance }) {
+  const img = ad.creative?.imageUrl ?? ad.thumbnailUrl;
+  if (!img) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-3xl text-brand/40">🖼️</div>
     );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [adId]);
-
+  }
   return (
-    <div ref={ref} className="relative h-full w-full overflow-hidden bg-neutral-100">
-      {/* Spinner until iframe is fully loaded */}
-      {!loaded && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-        </div>
-      )}
-      {src && scale > 0 && (
-        <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: "none" }}>
-          <div style={{ width: 320, height: 700, transformOrigin: "top left", transform: `scale(${scale})` }}>
-            <iframe
-              src={src}
-              width={320}
-              height={700}
-              style={{ border: 0, display: "block" }}
-              scrolling="no"
-              onLoad={() => setLoaded(true)}
-            />
-          </div>
-        </div>
+    <div className="relative h-full w-full overflow-hidden bg-neutral-100">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={img}
+        alt={ad.adName}
+        loading="lazy"
+        className="h-full w-full object-cover transition group-hover:opacity-90"
+      />
+      {ad.creative?.isVideo && (
+        <span className="absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-base text-white">
+          ▶
+        </span>
       )}
     </div>
   );
@@ -81,21 +58,7 @@ function AdCard({
         className="group relative block aspect-[9/16] w-full cursor-zoom-in bg-brand-light"
         aria-label={`Vergroot advertentie ${ad.adName}`}
       >
-        {ad.platform === "meta" ? (
-          <AdCardPreview adId={ad.adId} />
-        ) : ad.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={ad.thumbnailUrl}
-            alt={ad.adName}
-            loading="lazy"
-            className="h-full w-full object-cover transition group-hover:opacity-90"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-3xl text-brand/40">
-            🖼️
-          </div>
-        )}
+        <AdCardPreview ad={ad} />
         <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs font-bold text-brand-dark shadow">
           {rank}
         </span>
@@ -136,13 +99,6 @@ function AdCard({
   );
 }
 
-const FORMATS = [
-  { key: "MOBILE_FEED_STANDARD", label: "Facebook" },
-  { key: "INSTAGRAM_STANDARD", label: "Instagram" },
-  { key: "DESKTOP_FEED_STANDARD", label: "Desktop" },
-  { key: "INSTAGRAM_STORY", label: "Story" },
-] as const;
-
 function Lightbox({
   ad,
   period,
@@ -152,8 +108,6 @@ function Lightbox({
   period: string;
   onClose: () => void;
 }) {
-  const [format, setFormat] = useState<string>("MOBILE_FEED_STANDARD");
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -163,11 +117,6 @@ function Lightbox({
       document.body.style.overflow = "";
     };
   }, [onClose]);
-
-  const proxySrc =
-    ad.platform === "meta"
-      ? `/api/meta/preview-proxy?adId=${encodeURIComponent(ad.adId)}&format=${format}`
-      : null;
 
   return (
     <div
@@ -190,21 +139,12 @@ function Lightbox({
           ✕
         </button>
 
-        {/* Preview: vaste breedte (320px = Meta mobile feed), verticaal scrollbaar
-            zodat de volledige advertentie — en de cookie-melding indien getoond —
-            altijd bereikbaar is. */}
-        <div className="shrink-0 overflow-y-auto bg-neutral-100" style={{ maxHeight: "78vh" }}>
-          {proxySrc ? (
-            <iframe
-              key={proxySrc}
-              src={proxySrc}
-              title={ad.adName}
-              width={320}
-              height={1000}
-              className="mx-auto block border-0"
-              style={{ width: 320, height: 1000 }}
-              scrolling="no"
-            />
+        {/* Zelf-gerenderde, getrouwe advertentieweergave — verticaal scrollbaar
+            zodat de volledige advertentie altijd zichtbaar is. Geen Facebook-
+            iframe, dus geen cookie-melding. */}
+        <div className="shrink-0 overflow-y-auto bg-neutral-100 py-4" style={{ maxHeight: "78vh" }}>
+          {ad.creative ? (
+            <MetaAdPreview creative={ad.creative} adName={ad.adName} />
           ) : ad.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={ad.thumbnailUrl} alt={ad.adName} className="mx-auto block max-w-full object-contain" />
@@ -212,25 +152,6 @@ function Lightbox({
             <div className="flex h-64 w-full items-center justify-center text-5xl text-neutral-300">🖼️</div>
           )}
         </div>
-
-        {ad.platform === "meta" && (
-          <div className="flex gap-1 border-b border-black/5 px-4 py-2">
-            {FORMATS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setFormat(f.key)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                  format === f.key
-                    ? "bg-brand text-white"
-                    : "text-muted hover:bg-brand-light hover:text-ink"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="overflow-y-auto p-5">
           <h3 className="text-base font-semibold text-ink">{ad.adName || "—"}</h3>
