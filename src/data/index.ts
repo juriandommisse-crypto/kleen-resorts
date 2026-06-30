@@ -66,13 +66,13 @@ export async function getDashboardData(): Promise<DashboardData> {
   // Ad spend bundelen ZONDER dubbeltelling:
   // - Meta-spend komt uit de Meta API (accuraat, recent).
   // - Google + LinkedIn komen uit de "Spend per park"-sheet.
-  // - Voor weken die de Meta API niet dekt (>90 dagen terug) valt Meta terug
-  //   op de sheet. We laten de Meta-rijen uit de sheet dus alleen vallen voor
-  //   de weken waarin de API wél Meta-data heeft.
+  // - Voor weken+projecten die de Meta API dekt, laten we de sheet-Meta-rij
+  //   vallen. We matchen per (week, project) zodat projecten zonder API-data
+  //   hun sheet-Meta-spend wél behouden.
   const metaSpend = deriveSpendFromAds(adPerformance);
-  const metaApiWeeks = new Set(metaSpend.map((s) => s.week));
+  const metaApiKeys = new Set(metaSpend.map((s) => `${s.week}__${s.project}`));
   const sheetSpendNoDoubleMeta = sheetSpend.filter(
-    (s) => !(s.platform === "meta" && metaApiWeeks.has(s.week)),
+    (s) => !(s.platform === "meta" && metaApiKeys.has(`${s.week}__${s.project}`)),
   );
   const weeklySpend = [...metaSpend, ...sheetSpendNoDoubleMeta];
 
