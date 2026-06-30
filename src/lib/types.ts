@@ -30,29 +30,6 @@ export interface WeeklySpend {
   spendEur: number;
 }
 
-/** De échte creative-inhoud van een advertentie, genoeg om een getrouwe
- *  Facebook-feed-weergave zelf op te bouwen (zonder Facebook-iframe). */
-export interface AdCreative {
-  /** Volledige-resolutie afbeelding van de creative (of video-poster). */
-  imageUrl: string | null;
-  /** True als de creative een video is (we tonen dan het posterbeeld). */
-  isVideo: boolean;
-  /** Primaire tekst boven de afbeelding. */
-  body: string | null;
-  /** Kop onder de afbeelding. */
-  title: string | null;
-  /** Linkbeschrijving onder de kop. */
-  description: string | null;
-  /** Call-to-action label (NL), bv. "Meer informatie". */
-  cta: string | null;
-  /** Weergegeven domein/link, bv. "kleenresortsverkoop.nl". */
-  displayLink: string | null;
-  /** Naam van de adverterende pagina. */
-  pageName: string | null;
-  /** Profielfoto-URL van de pagina (of null). */
-  pageAvatar: string | null;
-}
-
 /** Performance van één advertentie in een periode (vooral Meta). */
 export interface AdPerformance {
   week: WeekKey;
@@ -68,8 +45,6 @@ export interface AdPerformance {
   thumbnailUrl: string | null;
   /** Deelbare preview-link in Meta Ads Manager (of null als onbekend). */
   previewUrl: string | null;
-  /** Échte creative-inhoud om de advertentie zelf na te bouwen (of null). */
-  creative: AdCreative | null;
   spendEur: number;
   impressions: number;
   clicks: number;
