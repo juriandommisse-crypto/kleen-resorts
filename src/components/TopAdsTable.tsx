@@ -177,39 +177,40 @@ function Lightbox({
       aria-modal="true"
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
+        className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative flex h-[65vh] shrink-0 items-center justify-center overflow-hidden bg-[#f5f5f5]">
+        {/* Sluitknop blijft altijd in beeld, los van het scrollen van de preview. */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-lg font-bold text-ink shadow hover:bg-white"
+          aria-label="Sluiten"
+        >
+          ✕
+        </button>
+
+        {/* Preview: vaste breedte (320px = Meta mobile feed), verticaal scrollbaar
+            zodat de volledige advertentie — en de cookie-melding indien getoond —
+            altijd bereikbaar is. */}
+        <div className="shrink-0 overflow-y-auto bg-neutral-100" style={{ maxHeight: "78vh" }}>
           {proxySrc ? (
-            // The proxy page scales the 320×700 Meta preview to fill this container,
-            // so the full ad is always visible without scrolling.
             <iframe
               key={proxySrc}
               src={proxySrc}
               title={ad.adName}
-              className="h-full w-full border-0"
+              width={320}
+              height={1000}
+              className="mx-auto block border-0"
+              style={{ width: 320, height: 1000 }}
               scrolling="no"
             />
           ) : ad.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={ad.thumbnailUrl} alt={ad.adName} className="h-full w-full object-contain" />
+            <img src={ad.thumbnailUrl} alt={ad.adName} className="mx-auto block max-w-full object-contain" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-5xl text-neutral-300">🖼️</div>
+            <div className="flex h-64 w-full items-center justify-center text-5xl text-neutral-300">🖼️</div>
           )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-lg font-bold text-ink shadow hover:bg-white"
-            aria-label="Sluiten"
-          >
-            ✕
-          </button>
-          <span
-            className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses(ad.status)}`}
-          >
-            {ad.status}
-          </span>
         </div>
 
         {ad.platform === "meta" && (
