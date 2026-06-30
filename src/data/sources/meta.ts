@@ -181,6 +181,8 @@ interface Creative {
   image_hash?: string;
   title?: string;
   body?: string;
+  /** ID van de live gepubliceerde post — weerspiegelt ALTIJD de laatste versie. */
+  effective_object_story_id?: string;
   object_story_spec?: {
     page_id?: string;
     link_data?: LinkData;
@@ -206,6 +208,7 @@ async function fetchAds(accountId: string): Promise<AdRow[]> {
     "image_hash",
     "title",
     "body",
+    "effective_object_story_id",
     "object_story_spec{page_id,link_data{message,name,description,caption,picture,image_hash,call_to_action},photo_data{caption,url,image_hash},video_data{message,title,link_description,image_url,image_hash,video_id,call_to_action}}",
     "asset_feed_spec{images,videos,bodies,titles,descriptions,link_urls,call_to_action_types}",
   ].join(",");
@@ -254,6 +257,72 @@ async function fetchPages(pageIds: string[]): Promise<Map<string, PageInfo>> {
   return map;
 }
 
+// --- Live gepubliceerde post (= de ALLERLAATSTE versie van de creative) ------
+
+interface PostMedia {
+  body: string | null;
+  image: string | null;
+  isVideo: boolean;
+  title: string | null;
+  description: string | null;
+  displayLink: string | null;
+  pageName: string | null;
+  pageAvatar: string | null;
+}
+
+interface PostAttachment {
+  media_type?: string;
+  media?: { image?: { src?: string } };
+  title?: string;
+  description?: string;
+  unshimmed_url?: string;
+  target?: { url?: string };
+}
+interface PostRow {
+  message?: string;
+  full_picture?: string;
+  attachments?: { data?: PostAttachment[] };
+  from?: { name?: string; picture?: { data?: { url?: string } } };
+}
+
+/** Haalt de live post-inhoud op (gebatcht). Dit weerspiegelt de laatste edit. */
+async function fetchPosts(storyIds: string[]): Promise<Map<string, PostMedia>> {
+  const map = new Map<string, PostMedia>();
+  const ids = Array.from(new Set(storyIds.filter(Boolean)));
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    try {
+      const params = new URLSearchParams({
+        ids: chunk.join(","),
+        fields:
+          "message,full_picture,attachments{media_type,media,title,description,unshimmed_url,target},from{name,picture{url}}",
+        access_token: token(),
+      });
+      const res = await fetch(`${GRAPH}/${version()}/?${params}`);
+      if (!res.ok) continue;
+      const json = (await res.json()) as Record<string, PostRow>;
+      for (const id of chunk) {
+        const p = json[id];
+        if (!p) continue;
+        const att = p.attachments?.data?.[0];
+        map.set(id, {
+          body: p.message ?? null,
+          image: att?.media?.image?.src ?? p.full_picture ?? null,
+          isVideo: att?.media_type === "video",
+          title: att?.title ?? null,
+          description: att?.description ?? null,
+          displayLink: cleanDomain(att?.unshimmed_url ?? att?.target?.url),
+          pageName: p.from?.name ?? null,
+          pageAvatar: p.from?.picture?.data?.url ?? null,
+        });
+      }
+    } catch {
+      /* post-inhoud is optioneel — val terug op de creative-spec */
+    }
+  }
+  return map;
+}
+
 /** Vertaalt Meta's call-to-action-type naar een Nederlands knoplabel. */
 const CTA_NL: Record<string, string> = {
   LEARN_MORE: "Meer informatie",
@@ -285,25 +354,31 @@ function cleanDomain(url?: string | null): string | null {
   return url.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0] || null;
 }
 
-/** Bouwt de échte creative-inhoud op uit de Meta creative + hash-afbeeldingen. */
+/** Bouwt de échte creative-inhoud op. De live post (effective_object_story_id)
+ *  is leidend, want die weerspiegelt ALTIJD de laatste versie van de advertentie;
+ *  de creative-spec dient alleen als fallback. */
 function buildCreative(
   creative: Creative | undefined,
   imgByHash: Map<string, string>,
   pages: Map<string, PageInfo>,
+  posts: Map<string, PostMedia>,
 ): AdCreative | null {
   if (!creative) return null;
   const oss = creative.object_story_spec;
   const link = oss?.link_data;
   const vid = oss?.video_data;
   const afs = creative.asset_feed_spec;
+  const post = creative.effective_object_story_id
+    ? posts.get(creative.effective_object_story_id)
+    : undefined;
 
   const imageFromHash = hashesOf(creative)
     .map((h) => imgByHash.get(h))
     .find(Boolean);
 
-  const isVideo = Boolean(vid?.video_id || afs?.videos?.length);
-
+  // Afbeelding: de live post eerst (= laatste versie), daarna spec-fallbacks.
   const imageUrl =
+    post?.image ??
     imageFromHash ??
     creative.image_url ??
     vid?.image_url ??
@@ -312,15 +387,23 @@ function buildCreative(
     creative.thumbnail_url ??
     null;
 
-  const body = link?.message ?? vid?.message ?? creative.body ?? afs?.bodies?.[0]?.text ?? null;
-  const title = link?.name ?? vid?.title ?? creative.title ?? afs?.titles?.[0]?.text ?? null;
+  const isVideo = post?.isVideo ?? Boolean(vid?.video_id || afs?.videos?.length);
+
+  const body =
+    post?.body ?? link?.message ?? vid?.message ?? creative.body ?? afs?.bodies?.[0]?.text ?? null;
+  const title =
+    post?.title ?? link?.name ?? vid?.title ?? creative.title ?? afs?.titles?.[0]?.text ?? null;
   const description =
-    link?.description ?? vid?.link_description ?? afs?.descriptions?.[0]?.text ?? null;
+    post?.description ??
+    link?.description ??
+    vid?.link_description ??
+    afs?.descriptions?.[0]?.text ??
+    null;
   const ctaType =
     link?.call_to_action?.type ?? vid?.call_to_action?.type ?? afs?.call_to_action_types?.[0] ?? null;
-  const displayLink = cleanDomain(
-    link?.caption ?? afs?.link_urls?.[0]?.display_url ?? afs?.link_urls?.[0]?.website_url,
-  );
+  const displayLink =
+    post?.displayLink ??
+    cleanDomain(link?.caption ?? afs?.link_urls?.[0]?.display_url ?? afs?.link_urls?.[0]?.website_url);
 
   const page = oss?.page_id ? pages.get(oss.page_id) : undefined;
 
@@ -332,8 +415,8 @@ function buildCreative(
     description,
     cta: ctaLabel(ctaType),
     displayLink,
-    pageName: page?.name ?? null,
-    pageAvatar: page?.avatar ?? null,
+    pageName: post?.pageName ?? page?.name ?? null,
+    pageAvatar: post?.pageAvatar ?? page?.avatar ?? null,
   };
 }
 
@@ -451,15 +534,18 @@ export async function fetchAdPerformance(): Promise<AdPerformance[]> {
         const allHashes = Array.from(new Set(ads.flatMap((a) => hashesOf(a.creative))));
         const imgByHash = allHashes.length ? await fetchAdImages(acc, allHashes) : new Map<string, string>();
 
-        // Pagina-info (naam + logo) voor de zelf-gerenderde preview.
+        // Live posts (laatste versie) + pagina-info voor de zelf-gerenderde preview.
+        const storyIds = ads
+          .map((a) => a.creative?.effective_object_story_id)
+          .filter((s): s is string => Boolean(s));
         const pageIds = ads
           .map((a) => a.creative?.object_story_spec?.page_id)
           .filter((p): p is string => Boolean(p));
-        const pages = await fetchPages(pageIds);
+        const [posts, pages] = await Promise.all([fetchPosts(storyIds), fetchPages(pageIds)]);
 
         const entries = ads.map((ad) => {
           const learning = ad.adset_id ? learningByAdset.get(ad.adset_id) : undefined;
-          const creative = buildCreative(ad.creative, imgByHash, pages);
+          const creative = buildCreative(ad.creative, imgByHash, pages, posts);
           // Volledige-resolutie afbeelding als kaart-thumbnail (scherp, de échte visual).
           const fromHash = hashesOf(ad.creative)
             .map((h) => imgByHash.get(h))

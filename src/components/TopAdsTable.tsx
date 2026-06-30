@@ -55,7 +55,7 @@ function AdCard({
       <button
         type="button"
         onClick={onOpen}
-        className="group relative block aspect-[9/16] w-full cursor-zoom-in bg-brand-light"
+        className="group relative block aspect-square w-full cursor-zoom-in bg-brand-light"
         aria-label={`Vergroot advertentie ${ad.adName}`}
       >
         <AdCardPreview ad={ad} />
@@ -139,37 +139,39 @@ function Lightbox({
           ✕
         </button>
 
-        {/* Zelf-gerenderde, getrouwe advertentieweergave — verticaal scrollbaar
-            zodat de volledige advertentie altijd zichtbaar is. Geen Facebook-
-            iframe, dus geen cookie-melding. */}
-        <div className="shrink-0 overflow-y-auto bg-neutral-100 py-4" style={{ maxHeight: "78vh" }}>
-          {ad.creative ? (
-            <MetaAdPreview creative={ad.creative} adName={ad.adName} />
-          ) : ad.thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={ad.thumbnailUrl} alt={ad.adName} className="mx-auto block max-w-full object-contain" />
-          ) : (
-            <div className="flex h-64 w-full items-center justify-center text-5xl text-neutral-300">🖼️</div>
-          )}
-        </div>
+        {/* Eén scroll-container voor de volledige inhoud (preview + cijfers),
+            zodat er maar één scrollbalk is. Zelf-gerenderde advertentie =
+            altijd de laatste versie, geen Facebook-iframe, geen cookie-melding. */}
+        <div className="overflow-y-auto">
+          <div className="bg-neutral-100 py-4">
+            {ad.creative ? (
+              <MetaAdPreview creative={ad.creative} adName={ad.adName} />
+            ) : ad.thumbnailUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={ad.thumbnailUrl} alt={ad.adName} className="mx-auto block max-w-full object-contain" />
+            ) : (
+              <div className="flex h-64 w-full items-center justify-center text-5xl text-neutral-300">🖼️</div>
+            )}
+          </div>
 
-        <div className="overflow-y-auto p-5">
-          <h3 className="text-base font-semibold text-ink">{ad.adName || "—"}</h3>
-          <p className="text-sm text-muted">
-            {ad.campaignName}
-            {ad.adsetName ? ` · ${ad.adsetName}` : ""}
-          </p>
-          <p className="mt-1 text-xs text-muted">Cijfers over {period}</p>
+          <div className="p-5">
+            <h3 className="text-base font-semibold text-ink">{ad.adName || "—"}</h3>
+            <p className="text-sm text-muted">
+              {ad.campaignName}
+              {ad.adsetName ? ` · ${ad.adsetName}` : ""}
+            </p>
+            <p className="mt-1 text-xs text-muted">Cijfers over {period}</p>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Resultaten" value={fmtNum(ad.results)} />
-            <Stat label="Kosten / resultaat" value={ad.cpl ? fmtEur(ad.cpl) : "—"} />
-            <Stat label="Spend" value={fmtEur(ad.spendEur)} />
-            <Stat label="CTR" value={fmtPct(ad.ctr)} />
-            <Stat label="Vertoningen" value={fmtNum(ad.impressions)} />
-            <Stat label="Klikken" value={fmtNum(ad.clicks)} />
-            <Stat label="CPC" value={fmtEur2(ad.cpc)} />
-            <Stat label="Status" value={ad.status} />
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat label="Resultaten" value={fmtNum(ad.results)} />
+              <Stat label="Kosten / resultaat" value={ad.cpl ? fmtEur(ad.cpl) : "—"} />
+              <Stat label="Spend" value={fmtEur(ad.spendEur)} />
+              <Stat label="CTR" value={fmtPct(ad.ctr)} />
+              <Stat label="Vertoningen" value={fmtNum(ad.impressions)} />
+              <Stat label="Klikken" value={fmtNum(ad.clicks)} />
+              <Stat label="CPC" value={fmtEur2(ad.cpc)} />
+              <Stat label="Status" value={ad.status} />
+            </div>
           </div>
         </div>
       </div>
