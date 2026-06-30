@@ -37,26 +37,43 @@ const SUPPRESS = `<style>
   new MutationObserver(reportHeight).observe(document.body||document.documentElement,{childList:true,subtree:true,attributes:true});
 </script>`;
 
-/** Haalt de preview-HTML server-side op (zonder cookie — de URL is publiek gesigneerd). */
-async function fetchRendered(url: string): Promise<{ html: string | null; reason: string }> {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": UA,
-        "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        Referer: "https://business.facebook.com/",
-      },
-      redirect: "follow",
-      cache: "no-store",
-    });
-    if (!res.ok) return { html: null, reason: `http-${res.status}` };
-    const html = await res.text();
-    if (html.length <= 500) return { html: null, reason: `too-short-${html.length}` };
-    return { html, reason: "ok" };
-  } catch (e) {
-    return { html: null, reason: `fetch-error-${String(e).slice(0, 80)}` };
+/** Haalt de preview-HTML server-side op (publiek gesigneerde URL). */
+async function fetchRendered(url: string, cookie?: string): Promise<{ html: string | null; reason: string }> {
+  // Probeer eerst met browser-iframe-headers (Sec-Fetch), daarna zonder als fallback.
+  const attempts: Record<string, string>[] = [
+    {
+      "User-Agent": UA,
+      "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      Referer: "https://www.facebook.com/",
+      "Sec-Fetch-Dest": "iframe",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "cross-site",
+      "Upgrade-Insecure-Requests": "1",
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+    {
+      "User-Agent": UA,
+      "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      Referer: "https://business.facebook.com/",
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+  ];
+
+  let lastReason = "no-attempt";
+  for (const headers of attempts) {
+    try {
+      const res = await fetch(url, { headers, redirect: "follow", cache: "no-store" });
+      if (!res.ok) { lastReason = `http-${res.status}`; continue; }
+      const html = await res.text();
+      if (html.length <= 500) { lastReason = `too-short-${html.length}`; continue; }
+      return { html, reason: "ok" };
+    } catch (e) {
+      lastReason = `fetch-error-${String(e).slice(0, 60)}`;
+    }
   }
+  return { html: null, reason: lastReason };
 }
 
 function modeBWrap(previewSrc: string, mode: string): string {
@@ -120,18 +137,19 @@ export async function GET(req: NextRequest) {
     "Cache-Control": "no-store",
   };
 
-  // MODE A — banner-vrij: haal de preview-HTML server-side op (zonder cookie, de URL
-  // is publiek gesigneerd via de Graph API) en serveer first-party vanaf ons domein.
-  // Onze SUPPRESS-CSS/JS verbergt de cookiebanner omdat we nu in hetzelfde origin zitten.
-  const { html, reason } = await fetchRendered(previewSrc);
+  // MODE A — banner-vrij: haal de preview-HTML server-side op en serveer first-party.
+  // Probeer eerst anoniem (publiek gesigneerde URL), daarna met FB-cookie als die er is.
+  const fbCookie = process.env.FB_PREVIEW_COOKIE;
+  const { html, reason } = await fetchRendered(previewSrc, fbCookie ?? undefined);
   if (html) {
     const out = html.includes("<head>")
       ? html.replace("<head>", `<head><base href="https://www.facebook.com/">${SUPPRESS}`)
       : `<base href="https://www.facebook.com/">${SUPPRESS}${html}`;
-    return new Response(out, { headers: { ...headersA, "X-Preview-Mode": "A-anon" } });
+    const mode = fbCookie ? "A-cookie" : "A-anon";
+    return new Response(out, { headers: { ...headersA, "X-Preview-Mode": mode } });
   }
 
-  // MODE B — fallback: Facebook geeft geen bruikbare HTML terug; embed de iframe direct.
+  // MODE B — fallback: embed Facebook's preview-iframe direct.
   const modeB = `B-fetch-failed:${reason}`;
   const wrap = modeBWrap(previewSrc, modeB);
   return new Response(wrap, { headers: { ...headersB, "X-Preview-Mode": modeB } });
