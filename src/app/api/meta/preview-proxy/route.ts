@@ -37,9 +37,8 @@ const SUPPRESS = `<style>
   new MutationObserver(reportHeight).observe(document.body||document.documentElement,{childList:true,subtree:true,attributes:true});
 </script>`;
 
-/** Haalt de gerenderde preview-HTML server-side op MET een Facebook-sessiecookie,
- *  zodat Facebook geen cookie-melding toont (we zijn dan "ingelogd"). */
-async function fetchRendered(url: string, cookie: string): Promise<string | null> {
+/** Haalt de gerenderde preview-HTML server-side op MET een Facebook-sessiecookie. */
+async function fetchRendered(url: string, cookie: string): Promise<{ html: string | null; reason: string }> {
   try {
     const res = await fetch(url, {
       headers: {
@@ -49,14 +48,32 @@ async function fetchRendered(url: string, cookie: string): Promise<string | null
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         Referer: "https://business.facebook.com/",
       },
+      redirect: "follow",
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { html: null, reason: `http-${res.status}` };
     const html = await res.text();
-    return html.length > 200 ? html : null;
-  } catch {
-    return null;
+    if (html.length <= 200) return { html: null, reason: `too-short-${html.length}` };
+    return { html, reason: "ok" };
+  } catch (e) {
+    return { html: null, reason: `fetch-error-${String(e).slice(0, 80)}` };
   }
+}
+
+function modeBWrap(previewSrc: string, mode: string): string {
+  return `<!doctype html>
+<html>
+<head><meta charset="utf-8"><style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:320px; background:#fff; margin:0; }
+  iframe { display:block; border:0; width:320px; height:700px; }
+</style></head>
+<body>
+  <!-- mode:${mode} -->
+  <iframe src="${previewSrc}" scrolling="no" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+    onload="window.parent.postMessage({type:'iframe-height',height:700},'*')"></iframe>
+</body>
+</html>`;
 }
 
 export async function GET(req: NextRequest) {
@@ -93,9 +110,15 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const headers = {
+  const headersA = {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "public, max-age=1800, s-maxage=1800",
+  };
+  // MODE B-responses nooit cachen: als MODE A later beschikbaar komt (cookie toegevoegd),
+  // moet de browser/CDN direct de nieuwe versie ophalen.
+  const headersB = {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
   };
 
   // MODE A — banner-vrij: render server-side met een opgeslagen Facebook-cookie en
@@ -103,33 +126,20 @@ export async function GET(req: NextRequest) {
   // apparaat. Vereist secret FB_PREVIEW_COOKIE (zie uitleg).
   const fbCookie = process.env.FB_PREVIEW_COOKIE;
   if (fbCookie) {
-    const html = await fetchRendered(previewSrc, fbCookie);
+    const { html, reason } = await fetchRendered(previewSrc, fbCookie);
     if (html) {
       const out = html.includes("<head>")
         ? html.replace("<head>", `<head><base href="https://www.facebook.com/">${SUPPRESS}`)
         : `<base href="https://www.facebook.com/">${SUPPRESS}${html}`;
-      return new Response(out, { headers: { ...headers, "X-Preview-Mode": "A-cookie" } });
+      return new Response(out, { headers: { ...headersA, "X-Preview-Mode": "A-cookie" } });
     }
     // cookie ongeldig/verlopen → val terug op MODE B
+    const modeB = `B-cookie-failed:${reason}`;
+    const wrap = modeBWrap(previewSrc, modeB);
+    return new Response(wrap, { headers: { ...headersB, "X-Preview-Mode": modeB } });
   }
 
-  // MODE B — fallback: embed Facebook's preview-iframe direct. Toont ALTIJD de
-  // laatste versie; op mobiel kan Facebook (zonder geldige sessie) wél de
-  // cookie-melding tonen. Voeg FB_PREVIEW_COOKIE toe om dit volledig te omzeilen.
-  const modeReason = fbCookie ? "B-cookie-failed" : "B-no-cookie";
-  // In MODE B kunnen we de hoogte van de inner iframe niet meten (cross-origin).
-  // We sturen na het laden een vaste hoogte die ruim genoeg is voor de meeste ads.
-  const wrap = `<!doctype html>
-<html>
-<head><meta charset="utf-8"><style>
-  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-  html, body { width:320px; background:#fff; margin:0; }
-  iframe { display:block; border:0; width:320px; height:700px; }
-</style></head>
-<body>
-  <iframe src="${previewSrc}" scrolling="no" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-    onload="window.parent.postMessage({type:'iframe-height',height:700},'*')"></iframe>
-</body>
-</html>`;
-  return new Response(wrap, { headers: { ...headers, "X-Preview-Mode": modeReason } });
+  // MODE B — fallback: geen cookie geconfigureerd.
+  const wrap = modeBWrap(previewSrc, "B-no-cookie");
+  return new Response(wrap, { headers: { ...headersB, "X-Preview-Mode": "B-no-cookie" } });
 }
