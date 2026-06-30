@@ -37,12 +37,11 @@ const SUPPRESS = `<style>
   new MutationObserver(reportHeight).observe(document.body||document.documentElement,{childList:true,subtree:true,attributes:true});
 </script>`;
 
-/** Haalt de gerenderde preview-HTML server-side op MET een Facebook-sessiecookie. */
-async function fetchRendered(url: string, cookie: string): Promise<{ html: string | null; reason: string }> {
+/** Haalt de preview-HTML server-side op (zonder cookie — de URL is publiek gesigneerd). */
+async function fetchRendered(url: string): Promise<{ html: string | null; reason: string }> {
   try {
     const res = await fetch(url, {
       headers: {
-        Cookie: cookie,
         "User-Agent": UA,
         "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -53,7 +52,7 @@ async function fetchRendered(url: string, cookie: string): Promise<{ html: strin
     });
     if (!res.ok) return { html: null, reason: `http-${res.status}` };
     const html = await res.text();
-    if (html.length <= 200) return { html: null, reason: `too-short-${html.length}` };
+    if (html.length <= 500) return { html: null, reason: `too-short-${html.length}` };
     return { html, reason: "ok" };
   } catch (e) {
     return { html: null, reason: `fetch-error-${String(e).slice(0, 80)}` };
@@ -121,25 +120,19 @@ export async function GET(req: NextRequest) {
     "Cache-Control": "no-store",
   };
 
-  // MODE A — banner-vrij: render server-side met een opgeslagen Facebook-cookie en
-  // serveer de HTML first-party vanaf ons domein. Geen cookie-melding op géén enkel
-  // apparaat. Vereist secret FB_PREVIEW_COOKIE (zie uitleg).
-  const fbCookie = process.env.FB_PREVIEW_COOKIE;
-  if (fbCookie) {
-    const { html, reason } = await fetchRendered(previewSrc, fbCookie);
-    if (html) {
-      const out = html.includes("<head>")
-        ? html.replace("<head>", `<head><base href="https://www.facebook.com/">${SUPPRESS}`)
-        : `<base href="https://www.facebook.com/">${SUPPRESS}${html}`;
-      return new Response(out, { headers: { ...headersA, "X-Preview-Mode": "A-cookie" } });
-    }
-    // cookie ongeldig/verlopen → val terug op MODE B
-    const modeB = `B-cookie-failed:${reason}`;
-    const wrap = modeBWrap(previewSrc, modeB);
-    return new Response(wrap, { headers: { ...headersB, "X-Preview-Mode": modeB } });
+  // MODE A — banner-vrij: haal de preview-HTML server-side op (zonder cookie, de URL
+  // is publiek gesigneerd via de Graph API) en serveer first-party vanaf ons domein.
+  // Onze SUPPRESS-CSS/JS verbergt de cookiebanner omdat we nu in hetzelfde origin zitten.
+  const { html, reason } = await fetchRendered(previewSrc);
+  if (html) {
+    const out = html.includes("<head>")
+      ? html.replace("<head>", `<head><base href="https://www.facebook.com/">${SUPPRESS}`)
+      : `<base href="https://www.facebook.com/">${SUPPRESS}${html}`;
+    return new Response(out, { headers: { ...headersA, "X-Preview-Mode": "A-anon" } });
   }
 
-  // MODE B — fallback: geen cookie geconfigureerd.
-  const wrap = modeBWrap(previewSrc, "B-no-cookie");
-  return new Response(wrap, { headers: { ...headersB, "X-Preview-Mode": "B-no-cookie" } });
+  // MODE B — fallback: Facebook geeft geen bruikbare HTML terug; embed de iframe direct.
+  const modeB = `B-fetch-failed:${reason}`;
+  const wrap = modeBWrap(previewSrc, modeB);
+  return new Response(wrap, { headers: { ...headersB, "X-Preview-Mode": modeB } });
 }
