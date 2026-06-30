@@ -180,7 +180,7 @@ function Lightbox({
         className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Sluitknop blijft altijd in beeld, los van het scrollen van de preview. */}
+        {/* Sluitknop: altijd zichtbaar, zweeft boven de scrollbare inhoud. */}
         <button
           type="button"
           onClick={onClose}
@@ -190,65 +190,68 @@ function Lightbox({
           ✕
         </button>
 
-        {/* Preview: vaste breedte (320px = Meta mobile feed), verticaal scrollbaar
-            zodat de volledige advertentie — en de cookie-melding indien getoond —
-            altijd bereikbaar is. */}
-        <div className="shrink-0 overflow-y-auto bg-neutral-100" style={{ maxHeight: "78vh" }}>
-          {proxySrc ? (
-            <iframe
-              key={proxySrc}
-              src={proxySrc}
-              title={ad.adName}
-              width={320}
-              height={1000}
-              className="mx-auto block border-0"
-              style={{ width: 320, height: 1000 }}
-              scrolling="no"
-            />
-          ) : ad.thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={ad.thumbnailUrl} alt={ad.adName} className="mx-auto block max-w-full object-contain" />
-          ) : (
-            <div className="flex h-64 w-full items-center justify-center text-5xl text-neutral-300">🖼️</div>
-          )}
-        </div>
-
-        {ad.platform === "meta" && (
-          <div className="flex gap-1 border-b border-black/5 px-4 py-2">
-            {FORMATS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setFormat(f.key)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                  format === f.key
-                    ? "bg-brand text-white"
-                    : "text-muted hover:bg-brand-light hover:text-ink"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+        {/* Één scrollcontainer voor preview + tabs + stats samen. */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Preview */}
+          <div className="bg-neutral-100">
+            {proxySrc ? (
+              <iframe
+                key={proxySrc}
+                src={proxySrc}
+                title={ad.adName}
+                width={320}
+                height={1000}
+                className="mx-auto block border-0"
+                style={{ width: 320, height: 1000 }}
+                scrolling="no"
+              />
+            ) : ad.thumbnailUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={ad.thumbnailUrl} alt={ad.adName} className="mx-auto block max-w-full object-contain" />
+            ) : (
+              <div className="flex h-64 w-full items-center justify-center text-5xl text-neutral-300">🖼️</div>
+            )}
           </div>
-        )}
 
-        <div className="overflow-y-auto p-5">
-          <h3 className="text-base font-semibold text-ink">{ad.adName || "—"}</h3>
-          <p className="text-sm text-muted">
-            {ad.campaignName}
-            {ad.adsetName ? ` · ${ad.adsetName}` : ""}
-          </p>
-          <p className="mt-1 text-xs text-muted">Cijfers over {period}</p>
+          {/* Formaat-tabs */}
+          {ad.platform === "meta" && (
+            <div className="flex gap-1 border-b border-black/5 px-4 py-2">
+              {FORMATS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setFormat(f.key)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    format === f.key
+                      ? "bg-brand text-white"
+                      : "text-muted hover:bg-brand-light hover:text-ink"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Resultaten" value={fmtNum(ad.results)} />
-            <Stat label="Kosten / resultaat" value={ad.cpl ? fmtEur(ad.cpl) : "—"} />
-            <Stat label="Spend" value={fmtEur(ad.spendEur)} />
-            <Stat label="CTR" value={fmtPct(ad.ctr)} />
-            <Stat label="Vertoningen" value={fmtNum(ad.impressions)} />
-            <Stat label="Klikken" value={fmtNum(ad.clicks)} />
-            <Stat label="CPC" value={fmtEur2(ad.cpc)} />
-            <Stat label="Status" value={ad.status} />
+          {/* Statistieken */}
+          <div className="p-5">
+            <h3 className="text-base font-semibold text-ink">{ad.adName || "—"}</h3>
+            <p className="text-sm text-muted">
+              {ad.campaignName}
+              {ad.adsetName ? ` · ${ad.adsetName}` : ""}
+            </p>
+            <p className="mt-1 text-xs text-muted">Cijfers over {period}</p>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat label="Resultaten" value={fmtNum(ad.results)} />
+              <Stat label="Kosten / resultaat" value={ad.cpl ? fmtEur(ad.cpl) : "—"} />
+              <Stat label="Spend" value={fmtEur(ad.spendEur)} />
+              <Stat label="CTR" value={fmtPct(ad.ctr)} />
+              <Stat label="Vertoningen" value={fmtNum(ad.impressions)} />
+              <Stat label="Klikken" value={fmtNum(ad.clicks)} />
+              <Stat label="CPC" value={fmtEur2(ad.cpc)} />
+              <Stat label="Status" value={ad.status} />
+            </div>
           </div>
         </div>
       </div>

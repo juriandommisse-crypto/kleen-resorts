@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
       const out = html.includes("<head>")
         ? html.replace("<head>", `<head><base href="https://www.facebook.com/">${SUPPRESS}`)
         : `<base href="https://www.facebook.com/">${SUPPRESS}${html}`;
-      return new Response(out, { headers });
+      return new Response(out, { headers: { ...headers, "X-Preview-Mode": "A-cookie" } });
     }
     // cookie ongeldig/verlopen → val terug op MODE B
   }
@@ -107,6 +107,7 @@ export async function GET(req: NextRequest) {
   // MODE B — fallback: embed Facebook's preview-iframe direct. Toont ALTIJD de
   // laatste versie; op mobiel kan Facebook (zonder geldige sessie) wél de
   // cookie-melding tonen. Voeg FB_PREVIEW_COOKIE toe om dit volledig te omzeilen.
+  const modeReason = fbCookie ? "B-cookie-failed" : "B-no-cookie";
   const wrap = `<!doctype html>
 <html>
 <head><meta charset="utf-8"><style>
@@ -118,5 +119,5 @@ export async function GET(req: NextRequest) {
   <iframe src="${previewSrc}" scrolling="no" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
 </body>
 </html>`;
-  return new Response(wrap, { headers });
+  return new Response(wrap, { headers: { ...headers, "X-Preview-Mode": modeReason } });
 }
