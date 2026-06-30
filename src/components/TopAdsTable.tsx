@@ -153,6 +153,8 @@ function Lightbox({
   onClose: () => void;
 }) {
   const [format, setFormat] = useState<string>("MOBILE_FEED_STANDARD");
+  const [iframeHeight, setIframeHeight] = useState(600);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -163,6 +165,20 @@ function Lightbox({
       document.body.style.overflow = "";
     };
   }, [onClose]);
+
+  // Luister naar hoogte-berichten van de proxy-pagina.
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === "iframe-height" && typeof e.data.height === "number") {
+        setIframeHeight(Math.max(200, e.data.height));
+      }
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+
+  // Reset hoogte bij formaatwissel.
+  useEffect(() => { setIframeHeight(600); }, [format]);
 
   const proxySrc =
     ad.platform === "meta"
@@ -196,13 +212,13 @@ function Lightbox({
           <div className="bg-neutral-100">
             {proxySrc ? (
               <iframe
+                ref={iframeRef}
                 key={proxySrc}
                 src={proxySrc}
                 title={ad.adName}
                 width={320}
-                height={1000}
                 className="mx-auto block border-0"
-                style={{ width: 320, height: 1000 }}
+                style={{ width: 320, height: iframeHeight }}
                 scrolling="no"
               />
             ) : ad.thumbnailUrl ? (

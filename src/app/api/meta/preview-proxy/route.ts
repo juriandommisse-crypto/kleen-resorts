@@ -8,6 +8,7 @@ const UA =
 // Verbergt + accepteert automatisch de cookie-melding. Dit script draait alleen
 // in MODE A (HTML wordt first-party vanaf ONS domein geserveerd), waar we wél
 // in het document mogen scripten — cross-origin in een Facebook-iframe kan dat niet.
+// Stuurt ook de echte contenthoogte via postMessage zodat het iframe zich aanpast.
 const SUPPRESS = `<style>
   [data-testid*="cookie"], [data-testid*="consent"], [role="dialog"], ._li,
   div[data-nosnippet] { display:none !important; visibility:hidden !important; }
@@ -26,6 +27,14 @@ const SUPPRESS = `<style>
   }
   var n=0, t=setInterval(function(){ if(acceptCookies()||++n>40) clearInterval(t); }, 150);
   document.addEventListener('DOMContentLoaded', acceptCookies);
+
+  // Stuur de echte paginahoogte naar de parent zodat het iframe zich aanpast.
+  function reportHeight(){
+    var h=document.documentElement.scrollHeight||document.body.scrollHeight;
+    if(h>50) window.parent.postMessage({type:'iframe-height',height:h},'*');
+  }
+  window.addEventListener('load', function(){ setTimeout(reportHeight,300); setTimeout(reportHeight,1200); });
+  new MutationObserver(reportHeight).observe(document.body||document.documentElement,{childList:true,subtree:true,attributes:true});
 </script>`;
 
 /** Haalt de gerenderde preview-HTML server-side op MET een Facebook-sessiecookie,
@@ -108,15 +117,18 @@ export async function GET(req: NextRequest) {
   // laatste versie; op mobiel kan Facebook (zonder geldige sessie) wél de
   // cookie-melding tonen. Voeg FB_PREVIEW_COOKIE toe om dit volledig te omzeilen.
   const modeReason = fbCookie ? "B-cookie-failed" : "B-no-cookie";
+  // In MODE B kunnen we de hoogte van de inner iframe niet meten (cross-origin).
+  // We sturen na het laden een vaste hoogte die ruim genoeg is voor de meeste ads.
   const wrap = `<!doctype html>
 <html>
 <head><meta charset="utf-8"><style>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-  html, body { width:320px; background:#fff; }
-  iframe { display:block; border:0; width:320px; height:1000px; }
+  html, body { width:320px; background:#fff; margin:0; }
+  iframe { display:block; border:0; width:320px; height:700px; }
 </style></head>
 <body>
-  <iframe src="${previewSrc}" scrolling="no" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+  <iframe src="${previewSrc}" scrolling="no" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+    onload="window.parent.postMessage({type:'iframe-height',height:700},'*')"></iframe>
 </body>
 </html>`;
   return new Response(wrap, { headers: { ...headers, "X-Preview-Mode": modeReason } });
