@@ -229,9 +229,9 @@ function Lightbox({
             )}
           </div>
 
-          {/* Formaat-tabs */}
+          {/* Formaat-tabs + open-in-facebook link */}
           {ad.platform === "meta" && (
-            <div className="flex gap-1 border-b border-black/5 px-4 py-2">
+            <div className="flex items-center gap-1 border-b border-black/5 px-4 py-2">
               {FORMATS.map((f) => (
                 <button
                   key={f.key}
@@ -246,6 +246,16 @@ function Lightbox({
                   {f.label}
                 </button>
               ))}
+              {ad.previewUrl && (
+                <a
+                  href={ad.previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto shrink-0 rounded-full bg-brand-light px-3 py-1 text-xs font-medium text-brand-dark hover:bg-brand hover:text-white transition"
+                >
+                  Open in Facebook ↗
+                </a>
+              )}
             </div>
           )}
 
