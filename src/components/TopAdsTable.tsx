@@ -13,12 +13,15 @@ function statusClasses(status: string): string {
   return "bg-black/10 text-ink";
 }
 
-/** Card thumbnail: proxied Meta preview — no cookie popup, no blurry thumbnail. */
+/** Card thumbnail: server-side gerenderde screenshot van de nieuwste ad —
+ *  geen cookie-melding voor wie dan ook. Valt bij een renderfout terug op de
+ *  live iframe-preview (die toont ook de nieuwste versie, maar kan een banner
+ *  tonen voor niet-ingelogde bezoekers). Nooit een oude/wazige thumbnail. */
 function AdCardPreview({ adId }: { adId: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [src, setSrc] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [scale, setScale] = useState(0);
+  const [fallback, setFallback] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -27,9 +30,7 @@ function AdCardPreview({ adId }: { adId: string }) {
       (entries) => {
         if (!entries[0].isIntersecting) return;
         observer.disconnect();
-        // MOBILE_FEED_STANDARD preview is 320px wide; scale to fit card.
-        setScale(el.offsetWidth / 320);
-        setSrc(`/api/meta/preview-proxy?adId=${encodeURIComponent(adId)}&format=MOBILE_FEED_STANDARD`);
+        setVisible(true);
       },
       { threshold: 0.1 },
     );
@@ -37,26 +38,37 @@ function AdCardPreview({ adId }: { adId: string }) {
     return () => observer.disconnect();
   }, [adId]);
 
+  const imgSrc = `/api/meta/preview-image?adId=${encodeURIComponent(adId)}&format=MOBILE_FEED_STANDARD`;
+  const iframeSrc = `/api/meta/preview-proxy?adId=${encodeURIComponent(adId)}&format=MOBILE_FEED_STANDARD`;
+
   return (
     <div ref={ref} className="relative h-full w-full overflow-hidden bg-neutral-100">
-      {/* Spinner until iframe is fully loaded */}
       {!loaded && (
         <div className="absolute inset-0 z-10 flex items-center justify-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" />
         </div>
       )}
-      {src && scale > 0 && (
+      {visible && !fallback && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imgSrc}
+          alt=""
+          className="h-full w-full object-cover object-top transition group-hover:opacity-90"
+          onLoad={() => setLoaded(true)}
+          onError={() => setFallback(true)}
+        />
+      )}
+      {visible && fallback && (
         <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: "none" }}>
-          <div style={{ width: 320, height: 700, transformOrigin: "top left", transform: `scale(${scale})` }}>
-            <iframe
-              src={src}
-              width={320}
-              height={700}
-              style={{ border: 0, display: "block" }}
-              scrolling="no"
-              onLoad={() => setLoaded(true)}
-            />
-          </div>
+          <iframe
+            src={iframeSrc}
+            className="mx-auto block"
+            width={320}
+            height={700}
+            style={{ border: 0, display: "block", transformOrigin: "top left" }}
+            scrolling="no"
+            onLoad={() => setLoaded(true)}
+          />
         </div>
       )}
     </div>
@@ -154,7 +166,7 @@ function Lightbox({
 }) {
   const [format, setFormat] = useState<string>("MOBILE_FEED_STANDARD");
   const [iframeHeight, setIframeHeight] = useState(600);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -166,7 +178,7 @@ function Lightbox({
     };
   }, [onClose]);
 
-  // Luister naar hoogte-berichten van de proxy-pagina.
+  // Luister naar hoogte-berichten van de proxy-pagina (alleen bij iframe-fallback).
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.data?.type === "iframe-height" && typeof e.data.height === "number") {
@@ -177,13 +189,16 @@ function Lightbox({
     return () => window.removeEventListener("message", onMsg);
   }, []);
 
-  // Reset hoogte bij formaatwissel.
-  useEffect(() => { setIframeHeight(600); }, [format]);
+  // Reset bij formaatwissel.
+  useEffect(() => { setIframeHeight(600); setImgFailed(false); }, [format]);
 
-  const proxySrc =
-    ad.platform === "meta"
-      ? `/api/meta/preview-proxy?adId=${encodeURIComponent(ad.adId)}&format=${format}`
-      : null;
+  const isMeta = ad.platform === "meta";
+  const imgSrc = isMeta
+    ? `/api/meta/preview-image?adId=${encodeURIComponent(ad.adId)}&format=${format}`
+    : null;
+  const proxySrc = isMeta
+    ? `/api/meta/preview-proxy?adId=${encodeURIComponent(ad.adId)}&format=${format}`
+    : null;
 
   return (
     <div
@@ -208,11 +223,19 @@ function Lightbox({
 
         {/* Één scrollcontainer voor preview + tabs + stats samen. */}
         <div className="flex-1 overflow-y-auto">
-          {/* Preview */}
+          {/* Preview: server-side screenshot (geen banner), iframe als fallback. */}
           <div className="bg-neutral-100">
-            {proxySrc ? (
+            {imgSrc && !imgFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={imgSrc}
+                src={imgSrc}
+                alt={ad.adName}
+                className="mx-auto block w-full max-w-[380px]"
+                onError={() => setImgFailed(true)}
+              />
+            ) : proxySrc ? (
               <iframe
-                ref={iframeRef}
                 key={proxySrc}
                 src={proxySrc}
                 title={ad.adName}

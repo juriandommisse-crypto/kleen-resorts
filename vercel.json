@@ -5,5 +5,11 @@
       "path": "/api/refresh",
       "schedule": "0 7 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "src/app/api/meta/preview-image/route.ts": {
+      "memory": 1769,
+      "maxDuration": 60
+    }
+  }
 }
