@@ -8,6 +8,7 @@ import {
   kpisForPeriod,
   leadsByProject,
   periodLabel,
+  periodKeyOf,
   periodRange,
   series,
   topAds,
@@ -77,7 +78,10 @@ export function Dashboard({ data }: { data: DashboardData }) {
   // Datum die bij de AI-analyse hoort: de periode waarvoor de analyse is gegenereerd,
   // niet de geselecteerde periode (die kan afwijken).
   const insightWeek = data.insights[granularity]?.week;
-  const insightRange = insightWeek ? periodRange(insightWeek, granularity) : null;
+  // insightWeek is altijd een ISO-week ("2026-W27"); zet om naar de juiste
+  // periode-sleutel voor de actieve granulariteit (maand → "2026-07", jaar → "2026").
+  const insightPeriodKey = insightWeek ? periodKeyOf(insightWeek, granularity) : null;
+  const insightRange = insightPeriodKey ? periodRange(insightPeriodKey, granularity) : null;
   const insightRangeLabel = insightRange ? `${fmtDateNL(insightRange.start)} – ${fmtDateNL(insightRange.end)}` : "";
 
   return (
@@ -168,7 +172,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
           Op desktop: grafiek + ranglijst naast elkaar, beste ads in volle breedte. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-12">
-          <InsightPanel insight={data.insights[granularity]} adNameToId={adNameToId} periodLabel={insightWeek ? periodLabel(insightWeek, granularity) : ""} rangeLabel={insightRangeLabel} />
+          <InsightPanel insight={data.insights[granularity]} adNameToId={adNameToId} periodLabel={insightPeriodKey ? periodLabel(insightPeriodKey, granularity) : ""} rangeLabel={insightRangeLabel} />
         </div>
         <div className={project === ALL_PROJECTS ? "h-full lg:col-span-8" : "lg:col-span-12"}>
           <TrendChart data={trend} title={TREND_TITLE[granularity]} />
